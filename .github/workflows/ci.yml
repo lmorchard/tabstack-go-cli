@@ -9,6 +9,11 @@ jobs:
   lint-test:
     name: CI (Lint, Test)
     runs-on: ubuntu-latest
+    env:
+      # Bypass proxy.golang.org / sum.golang.org for the unpublished SDK so
+      # vendor/modules.txt matches the raw upstream go.mod (the proxy can serve
+      # a normalized version that omits the `go 1.22` directive).
+      GOPRIVATE: github.com/stainless-sdks/tabstack-go
     steps:
       - name: Check for [noci] in commit message
         id: check_commit
