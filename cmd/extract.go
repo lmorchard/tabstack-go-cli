@@ -34,6 +34,9 @@ var extractMarkdownCmd = &cobra.Command{
 }
 
 func runExtractMarkdown(_ *cobra.Command, args []string) error {
+	if err := validateEnum("effort", extractMarkdownEffort, validEfforts); err != nil {
+		return err
+	}
 	c, err := client.New(GetConfig())
 	if err != nil {
 		return err
@@ -95,6 +98,9 @@ var extractJsonCmd = &cobra.Command{
 func runExtractJson(_ *cobra.Command, args []string) error {
 	if extractJsonSchemaPath == "" {
 		return fmt.Errorf("--schema is required")
+	}
+	if err := validateEnum("effort", extractJsonEffort, validEfforts); err != nil {
+		return err
 	}
 	sch, err := schema.Load(extractJsonSchemaPath)
 	if err != nil {

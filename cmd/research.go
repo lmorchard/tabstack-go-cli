@@ -26,6 +26,9 @@ var researchCmd = &cobra.Command{
 }
 
 func runResearch(_ *cobra.Command, args []string) error {
+	if err := validateEnum("mode", researchMode, validResearchModes); err != nil {
+		return err
+	}
 	c, err := client.New(GetConfig())
 	if err != nil {
 		return err
