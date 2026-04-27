@@ -36,6 +36,9 @@ var generateJsonCmd = &cobra.Command{
 }
 
 func runGenerateJson(_ *cobra.Command, args []string) error {
+	if err := validateEnum("effort", generateJsonEffort, validEfforts); err != nil {
+		return err
+	}
 	instructions, err := resolveInstructions(generateJsonInstructions, generateJsonInstructionsFile)
 	if err != nil {
 		return err
