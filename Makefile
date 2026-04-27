@@ -60,11 +60,18 @@ test:
 	@go test ./...
 	@echo "✅ Tests complete"
 
+# Local patches we layer over the vendored SDK (see vendor/.../local_patch_*.go).
+# `go mod vendor` strips these out because they're not in modules.txt; we
+# restore them from git after vendoring.
+SDK_PATCHES := vendor/github.com/stainless-sdks/tabstack-go/local_patch_file_id_unions.go
+
 # Refresh vendored dependencies after a go.mod change
 vendor:
 	@echo "Vendoring dependencies..."
 	@go mod vendor
-	@echo "✅ vendor/ refreshed"
+	@echo "Restoring local SDK patches..."
+	@git restore --source HEAD -- $(SDK_PATCHES)
+	@echo "✅ vendor/ refreshed (with local patches restored)"
 
 # Verify vendor/ is in sync with go.mod (for CI)
 vendor-check:

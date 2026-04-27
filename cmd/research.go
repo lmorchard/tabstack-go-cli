@@ -48,7 +48,7 @@ func runResearch(_ *cobra.Command, args []string) error {
 	}
 
 	stream := c.Agent.ResearchStreaming(context.Background(), body)
-	if err := sse.WriteJSONLines[tabstack.ResearchEvent](os.Stdout, stream); err != nil {
+	if err := sse.WriteJSONLines[tabstack.ResearchEventUnion](os.Stdout, stream); err != nil {
 		return fmt.Errorf("research stream: %w", err)
 	}
 	return nil
