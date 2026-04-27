@@ -36,7 +36,7 @@ Run a single test: `go test ./internal/foo -run TestName -v`.
 
 **Adding a command.** Use `python3 ~/.claude/skills/go-cli-builder/scripts/add_command.py <name>` to scaffold `cmd/<name>.go` with the standard boilerplate. Keep command bodies thin — call into `internal/<domain>` packages for real work.
 
-**Version injection.** `cmd/version.go` declares `version`/`commit`/`date` vars, but the Makefile's ldflags currently target `main.version` (etc.) — those variables don't exist in `main`, so version info won't actually be injected by `make build` until either the vars move to `main` or the ldflags switch to `main.cmd.version` style. Worth fixing before the first release.
+**Version injection.** `cmd/version.go` declares package-private `version`/`commit`/`date` vars. The Makefile and release workflows inject them via `-ldflags "-X github.com/lmorchard/tabstack-go-cli/cmd.version=..."` (and similar for commit/date). If you rename the module path or move these vars, update all three places.
 
 ## CI / Releases
 

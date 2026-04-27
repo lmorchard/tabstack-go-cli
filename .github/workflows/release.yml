@@ -48,7 +48,8 @@ jobs:
           VERSION="${GITHUB_REF#refs/tags/}"
           COMMIT="${GITHUB_SHA:0:7}"
           BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          LDFLAGS="-X main.version=$VERSION -X main.commit=$COMMIT -X main.date=$BUILD_DATE"
+          VERSION_PKG="github.com/lmorchard/tabstack-go-cli/cmd"
+          LDFLAGS="-X $VERSION_PKG.version=$VERSION -X $VERSION_PKG.commit=$COMMIT -X $VERSION_PKG.date=$BUILD_DATE"
 
           go build -ldflags "$LDFLAGS" -o tabstack${{ matrix.goos == 'windows' && '.exe' || '' }}
 
