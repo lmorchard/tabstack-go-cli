@@ -72,7 +72,9 @@ func TestPrettyAutomate_AgentAction_PlainValue(t *testing.T) {
 		}
 	}`)
 	var buf bytes.Buffer
-	_ = PrettyAutomate(&buf, ev, fixedStart())
+	if err := PrettyAutomate(&buf, ev, fixedStart()); err != nil {
+		t.Fatalf("PrettyAutomate: %v", err)
+	}
 	got := buf.String()
 	if !strings.Contains(got, "agent:action done") {
 		t.Errorf("missing action verb: %q", got)
@@ -94,7 +96,9 @@ func TestPrettyAutomate_AgentAction_RefAndValue(t *testing.T) {
 		}
 	}`)
 	var buf bytes.Buffer
-	_ = PrettyAutomate(&buf, ev, fixedStart())
+	if err := PrettyAutomate(&buf, ev, fixedStart()); err != nil {
+		t.Fatalf("PrettyAutomate: %v", err)
+	}
 	got := buf.String()
 	if !strings.Contains(got, "ref=E42") {
 		t.Errorf("missing ref: %q", got)
@@ -114,7 +118,9 @@ func TestPrettyAutomate_Complete_Success(t *testing.T) {
 		}
 	}`)
 	var buf bytes.Buffer
-	_ = PrettyAutomate(&buf, ev, fixedStart())
+	if err := PrettyAutomate(&buf, ev, fixedStart()); err != nil {
+		t.Fatalf("PrettyAutomate: %v", err)
+	}
 	got := buf.String()
 	if !strings.Contains(got, "complete ✓") {
 		t.Errorf("expected success marker: %q", got)
@@ -134,7 +140,9 @@ func TestPrettyAutomate_Complete_Failure(t *testing.T) {
 		}
 	}`)
 	var buf bytes.Buffer
-	_ = PrettyAutomate(&buf, ev, fixedStart())
+	if err := PrettyAutomate(&buf, ev, fixedStart()); err != nil {
+		t.Fatalf("PrettyAutomate: %v", err)
+	}
 	got := buf.String()
 	if !strings.Contains(got, "complete ✗") {
 		t.Errorf("expected failure marker: %q", got)
@@ -144,7 +152,9 @@ func TestPrettyAutomate_Complete_Failure(t *testing.T) {
 func TestPrettyAutomate_GenericFallback(t *testing.T) {
 	ev := automateFromJSON(t, `{"event": "system:debug_message", "data": {"message": "x"}}`)
 	var buf bytes.Buffer
-	_ = PrettyAutomate(&buf, ev, fixedStart())
+	if err := PrettyAutomate(&buf, ev, fixedStart()); err != nil {
+		t.Fatalf("PrettyAutomate: %v", err)
+	}
 	got := buf.String()
 	if !strings.Contains(got, "system:debug_message") {
 		t.Errorf("fallback should print event name: %q", got)
@@ -163,7 +173,9 @@ func TestPrettyResearch_SearchingEnd(t *testing.T) {
 		}
 	}`)
 	var buf bytes.Buffer
-	_ = PrettyResearch(&buf, ev, fixedStart())
+	if err := PrettyResearch(&buf, ev, fixedStart()); err != nil {
+		t.Fatalf("PrettyResearch: %v", err)
+	}
 	got := buf.String()
 	if !strings.Contains(got, "found 9 URL(s)") {
 		t.Errorf("missing URL count: %q", got)
@@ -187,7 +199,9 @@ func TestPrettyResearch_PlanningEnd(t *testing.T) {
 		}
 	}`)
 	var buf bytes.Buffer
-	_ = PrettyResearch(&buf, ev, fixedStart())
+	if err := PrettyResearch(&buf, ev, fixedStart()); err != nil {
+		t.Fatalf("PrettyResearch: %v", err)
+	}
 	got := buf.String()
 	if !strings.Contains(got, "complexity: simple") {
 		t.Errorf("missing complexity: %q", got)
@@ -200,7 +214,9 @@ func TestPrettyResearch_PlanningEnd(t *testing.T) {
 func TestPrettyResearch_GenericFallback(t *testing.T) {
 	ev := researchFromJSON(t, `{"event": "judging:start", "data": {"message": "x", "timestamp": 0}}`)
 	var buf bytes.Buffer
-	_ = PrettyResearch(&buf, ev, fixedStart())
+	if err := PrettyResearch(&buf, ev, fixedStart()); err != nil {
+		t.Fatalf("PrettyResearch: %v", err)
+	}
 	got := buf.String()
 	if !strings.Contains(got, "judging:start") {
 		t.Errorf("fallback should print event name: %q", got)
@@ -216,6 +232,15 @@ func TestTrunc(t *testing.T) {
 		{"short", 10, "short"},
 		{"this is a long string that exceeds the limit", 20, "this is a long stri…"},
 		{"  multi\n  line\n  text  ", 100, "multi line text"},
+		// Rune-safety: each Japanese char is 3 bytes in UTF-8 but 1 rune.
+		// "東京は日本の首都です" is 10 runes, 30 bytes. Truncation at n=5
+		// must produce 4 runes + ellipsis, not split the 5th rune mid-byte.
+		{"東京は日本の首都です", 5, "東京は日…"},
+		{"東京は日本の首都です", 100, "東京は日本の首都です"},
+		// Edge cases: n<=0 returns empty (no panic), n==1 returns just ellipsis.
+		{"foo", 0, ""},
+		{"foo", -1, ""},
+		{"foo", 1, "…"},
 	}
 	for _, tc := range tests {
 		got := trunc(tc.in, tc.n)

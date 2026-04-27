@@ -20,13 +20,20 @@ func elapsed(start time.Time) string {
 
 // trunc returns s shortened to at most n runes, with an ellipsis appended if
 // truncation occurred. Whitespace is collapsed so multi-line text fits on
-// one terminal line.
+// one terminal line. Rune-safe — never splits a multi-byte UTF-8 sequence.
 func trunc(s string, n int) string {
 	s = strings.TrimSpace(strings.Join(strings.Fields(s), " "))
-	if len(s) <= n {
+	if n <= 0 {
+		return ""
+	}
+	runes := []rune(s)
+	if len(runes) <= n {
 		return s
 	}
-	return s[:n-1] + "…"
+	if n == 1 {
+		return "…"
+	}
+	return string(runes[:n-1]) + "…"
 }
 
 // PrettyAutomate writes one human-readable line describing ev to w.
