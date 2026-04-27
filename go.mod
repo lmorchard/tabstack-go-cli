@@ -6,7 +6,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
-	github.com/stainless-sdks/tabstack-go v0.0.0-20260421233553-020acb44b47c
+	github.com/stainless-sdks/tabstack-go v0.0.0-20260427222655-92d20b0bcdb1
 	golang.org/x/term v0.42.0
 )
 
