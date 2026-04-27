@@ -35,8 +35,9 @@ purpose and usage of your CLI tool.`,
 
 // Execute adds all child commands to the root command and sets appropriate flags.
 func Execute() {
+	// Cobra prints "Error: ..." to stderr itself when SilenceErrors is false
+	// (the default). All we do here is propagate the non-zero exit.
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
