@@ -50,7 +50,7 @@ github.com/spf13/viper/internal/encoding/json
 github.com/spf13/viper/internal/encoding/toml
 github.com/spf13/viper/internal/encoding/yaml
 github.com/spf13/viper/internal/features
-# github.com/stainless-sdks/tabstack-go v0.0.0-20260424221429-47997ed193d0
+# github.com/stainless-sdks/tabstack-go v0.0.0-20260421233553-020acb44b47c
 ## explicit; go 1.22
 # github.com/subosito/gotenv v1.6.0
 ## explicit; go 1.18
