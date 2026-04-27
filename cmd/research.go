@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/lmorchard/tabstack-go-cli/internal/client"
 	"github.com/lmorchard/tabstack-go-cli/internal/sse"
@@ -16,6 +17,7 @@ var (
 	researchMode         string
 	researchNocache      bool
 	researchFetchTimeout int64
+	researchOutput       string
 )
 
 var researchCmd = &cobra.Command{
@@ -27,6 +29,9 @@ var researchCmd = &cobra.Command{
 
 func runResearch(_ *cobra.Command, args []string) error {
 	if err := validateEnum("mode", researchMode, validResearchModes); err != nil {
+		return err
+	}
+	if err := validateEnum("output", researchOutput, validStreamOutputs); err != nil {
 		return err
 	}
 	c, err := client.New(GetConfig())
@@ -48,6 +53,19 @@ func runResearch(_ *cobra.Command, args []string) error {
 	}
 
 	stream := c.Agent.ResearchStreaming(context.Background(), body)
+	if researchOutput == "pretty" {
+		defer func() { _ = stream.Close() }()
+		started := time.Now()
+		for stream.Next() {
+			if err := sse.PrettyResearch(os.Stdout, stream.Current(), started); err != nil {
+				return fmt.Errorf("render event: %w", err)
+			}
+		}
+		if err := stream.Err(); err != nil {
+			return fmt.Errorf("research stream: %w", err)
+		}
+		return nil
+	}
 	if err := sse.WriteJSONLines[tabstack.ResearchEventUnion](os.Stdout, stream); err != nil {
 		return fmt.Errorf("research stream: %w", err)
 	}
@@ -58,6 +76,7 @@ func init() {
 	researchCmd.Flags().StringVar(&researchMode, "mode", "", "research mode: fast or balanced")
 	researchCmd.Flags().BoolVar(&researchNocache, "nocache", false, "bypass cache")
 	researchCmd.Flags().Int64Var(&researchFetchTimeout, "fetch-timeout", 0, "per-fetch timeout in seconds (0 = SDK default)")
+	researchCmd.Flags().StringVar(&researchOutput, "output", "json", "stream output format: json (one event per line) or pretty (human-readable)")
 
 	rootCmd.AddCommand(researchCmd)
 }

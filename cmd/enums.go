@@ -13,6 +13,7 @@ import (
 var (
 	validEfforts       = []string{"min", "standard", "max"}
 	validResearchModes = []string{"fast", "balanced"}
+	validStreamOutputs = []string{"json", "pretty"}
 )
 
 // validateEnum returns an error when value is non-empty and not in valid.

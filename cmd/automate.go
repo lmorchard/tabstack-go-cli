@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/lmorchard/tabstack-go-cli/internal/client"
 	"github.com/lmorchard/tabstack-go-cli/internal/interactive"
 	"github.com/lmorchard/tabstack-go-cli/internal/schema"
+	"github.com/lmorchard/tabstack-go-cli/internal/sse"
 	"github.com/spf13/cobra"
 	tabstack "github.com/stainless-sdks/tabstack-go"
 	"github.com/stainless-sdks/tabstack-go/packages/param"
@@ -23,6 +25,7 @@ var (
 	automateGeo         string
 	automateMaxIter     int64
 	automateMaxValid    int64
+	automateOutput      string
 )
 
 var automateCmd = &cobra.Command{
@@ -33,6 +36,9 @@ var automateCmd = &cobra.Command{
 }
 
 func runAutomate(_ *cobra.Command, args []string) error {
+	if err := validateEnum("output", automateOutput, validStreamOutputs); err != nil {
+		return err
+	}
 	ctx := context.Background()
 
 	c, err := client.New(GetConfig())
@@ -81,10 +87,18 @@ func runAutomate(_ *cobra.Command, args []string) error {
 	defer func() { _ = stream.Close() }()
 
 	enc := json.NewEncoder(os.Stdout)
+	started := time.Now()
 	for stream.Next() {
 		ev := stream.Current()
-		if err := enc.Encode(ev); err != nil {
-			return fmt.Errorf("encode event: %w", err)
+		switch automateOutput {
+		case "pretty":
+			if err := sse.PrettyAutomate(os.Stdout, ev, started); err != nil {
+				return fmt.Errorf("render event: %w", err)
+			}
+		default:
+			if err := enc.Encode(ev); err != nil {
+				return fmt.Errorf("encode event: %w", err)
+			}
 		}
 		if prompter == nil {
 			continue
@@ -208,6 +222,7 @@ func init() {
 	automateCmd.Flags().StringVar(&automateGeo, "geo", "", "ISO 3166-1 alpha-2 country code")
 	automateCmd.Flags().Int64Var(&automateMaxIter, "max-iterations", 0, "max task iterations (0 = SDK default)")
 	automateCmd.Flags().Int64Var(&automateMaxValid, "max-validation-attempts", 0, "max validation attempts (0 = SDK default)")
+	automateCmd.Flags().StringVar(&automateOutput, "output", "json", "stream output format: json (one event per line) or pretty (human-readable)")
 
 	automateInputCmd.Flags().StringVar(&automateInputValuesPath, "values", "", `path to JSON file mapping field ref -> value`)
 	automateInputCmd.Flags().BoolVar(&automateInputCancel, "cancel", false, "cancel the request instead of providing values")
