@@ -73,6 +73,8 @@ vendor-check:
 	@git diff --quiet vendor/ go.mod go.sum || { \
 		echo "❌ vendor/ is out of sync with go.mod. Run 'make vendor' and commit the result."; \
 		git diff --stat vendor/ go.mod go.sum; \
+		echo "--- diff ---"; \
+		git diff vendor/ go.mod go.sum | head -60; \
 		exit 1; \
 	}
 	@echo "✅ vendor/ is in sync"
