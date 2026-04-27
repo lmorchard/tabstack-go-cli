@@ -29,9 +29,9 @@ jobs:
         with:
           go-version: '1.23'
 
-      - name: Download dependencies
+      - name: Verify vendor/ is in sync with go.mod
         if: steps.check_commit.outputs.skip != 'true'
-        run: go mod download
+        run: make vendor-check
 
       - name: Run golangci-lint
         if: steps.check_commit.outputs.skip != 'true'

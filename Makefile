@@ -1,4 +1,4 @@
-.PHONY: setup build run clean lint format test
+.PHONY: setup build run clean lint format test vendor vendor-check
 
 # Build variables
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -44,14 +44,14 @@ lint:
 	@$(HOME)/go/bin/golangci-lint run --timeout 5m
 	@echo "✅ Lint complete"
 
-# Format code
+# Format code (skips vendored dependencies)
 format:
 	@go fmt ./...
 	@test -f $(HOME)/go/bin/gofumpt || { \
 		echo "❌ gofumpt not found. Install with: make setup"; \
 		exit 1; \
 	}
-	@$(HOME)/go/bin/gofumpt -l -w .
+	@$(HOME)/go/bin/gofumpt -l -w cmd internal main.go
 	@echo "✅ Format complete"
 
 # Run tests
@@ -59,3 +59,20 @@ test:
 	@echo "Running tests..."
 	@go test ./...
 	@echo "✅ Tests complete"
+
+# Refresh vendored dependencies after a go.mod change
+vendor:
+	@echo "Vendoring dependencies..."
+	@go mod vendor
+	@echo "✅ vendor/ refreshed"
+
+# Verify vendor/ is in sync with go.mod (for CI)
+vendor-check:
+	@echo "Checking vendor/ is in sync with go.mod..."
+	@go mod vendor
+	@git diff --quiet vendor/ go.mod go.sum || { \
+		echo "❌ vendor/ is out of sync with go.mod. Run 'make vendor' and commit the result."; \
+		git diff --stat vendor/ go.mod go.sum; \
+		exit 1; \
+	}
+	@echo "✅ vendor/ is in sync"
