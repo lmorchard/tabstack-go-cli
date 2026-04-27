@@ -24,6 +24,9 @@ var rootCmd = &cobra.Command{
 
 This can be multiple lines and should provide helpful context about the
 purpose and usage of your CLI tool.`,
+	// API errors and other runtime failures shouldn't drag the full Cobra
+	// usage block along with them — Cobra still prints the error itself.
+	SilenceUsage: true,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		initConfig()
 		setupLogging()
