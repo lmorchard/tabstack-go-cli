@@ -47,11 +47,18 @@ func init() {
 	rootCmd.PersistentFlags().Bool("debug", false, "debug output")
 	rootCmd.PersistentFlags().Bool("log-json", false, "output logs in JSON format")
 
+	// Tabstack API flags
+	rootCmd.PersistentFlags().String("api-key", "", "Tabstack API key (env: TABSTACK_API_KEY)")
+	rootCmd.PersistentFlags().String("base-url", "", "Tabstack API base URL (env: TABSTACK_BASE_URL)")
 
 	// Bind flags to viper
 	_ = viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose"))
 	_ = viper.BindPFlag("debug", rootCmd.PersistentFlags().Lookup("debug"))
 	_ = viper.BindPFlag("log_json", rootCmd.PersistentFlags().Lookup("log-json"))
+	_ = viper.BindPFlag("api_key", rootCmd.PersistentFlags().Lookup("api-key"))
+	_ = viper.BindPFlag("base_url", rootCmd.PersistentFlags().Lookup("base-url"))
+	_ = viper.BindEnv("api_key", "TABSTACK_API_KEY")
+	_ = viper.BindEnv("base_url", "TABSTACK_BASE_URL")
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -107,9 +114,11 @@ func setupLogging() {
 func GetConfig() *config.Config {
 	if cfg == nil {
 		cfg = &config.Config{
-			Verbose:  viper.GetBool("verbose"),
-			Debug:    viper.GetBool("debug"),
-			LogJSON:  viper.GetBool("log_json"),
+			Verbose: viper.GetBool("verbose"),
+			Debug:   viper.GetBool("debug"),
+			LogJSON: viper.GetBool("log_json"),
+			APIKey:  viper.GetString("api_key"),
+			BaseURL: viper.GetString("base_url"),
 		}
 	}
 	return cfg

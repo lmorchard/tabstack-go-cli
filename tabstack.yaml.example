@@ -1,21 +1,16 @@
-# Configuration file for tabstack
-# Copy this to tabstack.yaml and customize as needed
+# Example tabstack configuration.
+#
+# Place this at ./tabstack.yaml or pass --config <path>.
+# CLI flags > env vars > this file > defaults.
 
-# Database configuration
-database: "tabstack.db"
+# Tabstack API base URL (defaults to https://api.tabstack.ai/v1/).
+# base_url: https://api.tabstack.ai/v1/
 
-# Logging configuration
+# DO NOT put your API key in this file unless the file is .gitignored.
+# Prefer the TABSTACK_API_KEY environment variable.
+# api_key: ""
+
+# Logging
 verbose: false
 debug: false
 log_json: false
-
-# Example command-specific configuration
-# Uncomment and customize as needed for your commands
-#
-# fetch:
-#   concurrency: 10
-#   timeout: 30s
-#
-# serve:
-#   port: 8080
-#   host: "localhost"

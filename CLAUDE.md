@@ -4,11 +4,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Purpose
 
-`tabstack` is a Go CLI that wraps the **Tabstack API**. The plan is to build it on top of the (currently unpublished) Stainless-generated Go SDK at `github.com/stainless-sdks/tabstack-go` — accessing that repo requires `gh`. API reference lives at https://docs.tabstack.ai/.
+`tabstack` is a Go CLI that wraps the **Tabstack API** (https://docs.tabstack.ai/) via the Stainless-generated Go SDK at `github.com/stainless-sdks/tabstack-go` (pinned by commit; no semver tags published).
 
-The SDK is **not yet wired in**: the scaffold has only the root command, version command, and config plumbing. Adding a Tabstack-backed command means: pulling in the SDK, threading API credentials through Viper (likely env-first since they're secrets), and putting the SDK calls behind an `internal/tabstack` (or similar) package — keep `cmd/` thin.
+Module path: `github.com/lmorchard/tabstack-go-cli`. Binary: `tabstack`.
 
-Module path is `github.com/lmorchard/tabstack-go-cli`; the binary is `tabstack`.
+The CLI exposes one top-level command per API capability (no `agent` parent group):
+
+| Command | Notes |
+|---|---|
+| `extract markdown <url>` | Fetch URL → clean markdown |
+| `extract json <url> --schema FILE` | Fetch URL → JSON per schema |
+| `generate json <url> --schema FILE --instructions TEXT` | Fetch URL → AI-transformed JSON |
+| `research <query>` | SSE-streamed cited research |
+| `automate <task>` | SSE-streamed browser automation; supports interactive form-data callbacks |
+| `automate input <request-id>` | Reply to an in-flight `automate` form-data request (2-min window) |
 
 ## Common Commands
 
@@ -37,6 +46,14 @@ Run a single test: `go test ./internal/foo -run TestName -v`.
 **Adding a command.** Use `python3 ~/.claude/skills/go-cli-builder/scripts/add_command.py <name>` to scaffold `cmd/<name>.go` with the standard boilerplate. Keep command bodies thin — call into `internal/<domain>` packages for real work.
 
 **Version injection.** `cmd/version.go` declares package-private `version`/`commit`/`date` vars. The Makefile and release workflows inject them via `-ldflags "-X github.com/lmorchard/tabstack-go-cli/cmd.version=..."` (and similar for commit/date). If you rename the module path or move these vars, update all three places.
+
+## Package Layout
+
+- `cmd/` — Cobra command definitions; one file per top-level command (`extract.go`, `generate.go`, `automate.go`, `research.go`). Commands stay thin: parse flags, build SDK params, call into `internal/`.
+- `internal/client` — constructs the Tabstack SDK client from `*config.Config`. Layers `--api-key`/`--base-url` on top of the SDK's env defaults. Fails fast when no key resolves.
+- `internal/schema` — loads JSON Schema documents from a path or `-` (stdin). Returns `any` for direct use as the SDK's `JsonSchema` field.
+- `internal/sse` — generic JSON-lines writer for any `*ssestream.Stream[T]`-like source. Used by `research`. (`automate` inlines its own drain loop because it interleaves event emit with interactive callbacks.)
+- `internal/interactive` — `Prompter` interface (TTY or file-source) and `Submitter` interface (wraps `Agent.AutomateInput`). The `--interactive` flag on `automate` engages this; `--input-from FILE` substitutes the file prompter for non-TTY runs.
 
 ## CI / Releases
 
