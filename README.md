@@ -143,9 +143,11 @@ Stream a multi-source AI research run. Output is one JSON event per line on stdo
 | `--mode {fast\|balanced}` | `fast` is single-iteration (~10–30s); `balanced` runs multiple iterations |
 | `--nocache` | Bypass cache |
 | `--fetch-timeout N` | Per-fetch timeout in seconds (0 = SDK default) |
+| `--output {json\|pretty}` | `json` (default) emits one JSON object per line; `pretty` renders human-readable lines like `[12s] searching:end — found 9 URL(s), 3 new` |
 
 ```sh
 tabstack research "Effects of microplastics on marine life" --mode fast
+tabstack research "deep-sea ecosystems" --output pretty
 ```
 
 The `complete` event carries the final report in `.data.report` (currently HTML-flavored — strip tags downstream if needed) and the cited sources in `.data.metadata.citedPages`.
@@ -164,6 +166,7 @@ Stream an AI browser-automation run that interprets a natural-language task. Out
 | `--geo CC` | Country code for geotargeting |
 | `--max-iterations N` | Max task iterations (0 = SDK default) |
 | `--max-validation-attempts N` | Max validation attempts (0 = SDK default) |
+| `--output {json\|pretty}` | `json` (default) emits one JSON object per line; `pretty` renders human-readable lines like `[12s] browser:navigated https://example.com — "Example Domain"` |
 
 ```sh
 tabstack automate "Visit https://example.com and report the page title" \
