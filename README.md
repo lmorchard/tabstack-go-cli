@@ -136,14 +136,14 @@ echo '{"type":"object","properties":{"summary":{"type":"string"}}}' \
 
 ### `tabstack research <query>`
 
-Stream a multi-source AI research run. Output is one JSON event per line on stdout. Events include `start`, `planning:start/end`, `searching:start/end`, `writing:start/end`, and a final `complete` event with the report and citation metadata.
+Stream a multi-source AI research run. Output mode auto-detects: human-readable when stdout is a TTY, one JSON event per line otherwise. Events include `start`, `planning:start/end`, `searching:start/end`, `writing:start/end`, and a final `complete` event with the report and citation metadata.
 
 | Flag | Description |
 |---|---|
 | `--mode {fast\|balanced}` | `fast` is single-iteration (~10–30s); `balanced` runs multiple iterations |
 | `--nocache` | Bypass cache |
 | `--fetch-timeout N` | Per-fetch timeout in seconds (0 = SDK default) |
-| `--output {json\|pretty}` | `json` (default) emits one JSON object per line; `pretty` renders human-readable lines like `[12s] searching:end — found 9 URL(s), 3 new`. The final `complete` event prints its full report verbatim on continuation lines |
+| `--output {auto\|json\|pretty}` | `auto` (default) picks `pretty` on a TTY and `json` otherwise. `json` emits one JSON object per line; `pretty` renders human-readable lines like `[12s] searching:end — found 9 URL(s), 3 new` and prints the final `complete` event's full report verbatim |
 | `--color {auto\|always\|never}` | Color in pretty output. `auto` (default) enables color when stdout is a TTY and `NO_COLOR` is not set |
 
 ```sh
@@ -155,7 +155,7 @@ The `complete` event carries the final report in `.data.report` (currently HTML-
 
 ### `tabstack automate <task>`
 
-Stream an AI browser-automation run that interprets a natural-language task. Output is one JSON event per line. Common event types: `cdp:endpoint_connected`, `browser:navigated`, `agent:step`, `agent:reasoned`, `agent:action`, `task:completed`, `complete`.
+Stream an AI browser-automation run that interprets a natural-language task. Output mode auto-detects (pretty on a TTY, json when piped). Common event types: `cdp:endpoint_connected`, `browser:navigated`, `agent:step`, `agent:reasoned`, `agent:action`, `task:completed`, `complete`.
 
 | Flag | Description |
 |---|---|
@@ -167,7 +167,7 @@ Stream an AI browser-automation run that interprets a natural-language task. Out
 | `--geo CC` | Country code for geotargeting |
 | `--max-iterations N` | Max task iterations (0 = SDK default) |
 | `--max-validation-attempts N` | Max validation attempts (0 = SDK default) |
-| `--output {json\|pretty}` | `json` (default) emits one JSON object per line; `pretty` renders human-readable lines like `[12s] browser:navigated https://example.com — "Example Domain"`. The final `complete` event and `agent:reasoned` events print their full content verbatim on continuation lines |
+| `--output {auto\|json\|pretty}` | `auto` (default) picks `pretty` on a TTY and `json` otherwise. `json` emits one JSON object per line; `pretty` renders human-readable lines like `[12s] browser:navigated https://example.com — "Example Domain"` with `complete` and `agent:reasoned` events printed verbatim |
 | `--color {auto\|always\|never}` | Color in pretty output. `auto` (default) enables color when stdout is a TTY and `NO_COLOR` is not set |
 
 ```sh
