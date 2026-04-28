@@ -9,6 +9,7 @@ import (
 
 	"github.com/lmorchard/tabstack-go-cli/internal/client"
 	"github.com/lmorchard/tabstack-go-cli/internal/schema"
+	"github.com/lmorchard/tabstack-go-cli/internal/spinner"
 	"github.com/spf13/cobra"
 	tabstack "github.com/stainless-sdks/tabstack-go"
 	"github.com/stainless-sdks/tabstack-go/packages/param"
@@ -76,6 +77,9 @@ func runGenerateJson(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	sp := spinner.New(os.Stderr, isTerminal(os.Stderr))
+	sp.Start()
+	defer sp.Stop()
 	resp, err := c.Generate.Json(context.Background(), body)
 	if err != nil {
 		return fmt.Errorf("generate json: %w", err)

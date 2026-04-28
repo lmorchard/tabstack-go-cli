@@ -10,6 +10,7 @@ import (
 	"github.com/lmorchard/tabstack-go-cli/internal/client"
 	"github.com/lmorchard/tabstack-go-cli/internal/interactive"
 	"github.com/lmorchard/tabstack-go-cli/internal/schema"
+	"github.com/lmorchard/tabstack-go-cli/internal/spinner"
 	"github.com/lmorchard/tabstack-go-cli/internal/sse"
 	"github.com/spf13/cobra"
 	tabstack "github.com/stainless-sdks/tabstack-go"
@@ -97,10 +98,14 @@ func runAutomate(cmd *cobra.Command, args []string) error {
 	started := time.Now()
 	color := resolveStreamColor(automateColor)
 	output := resolveStreamOutput(automateOutput)
+	sp := spinner.New(os.Stdout, output == "pretty" && isTerminal(os.Stdout))
+	sp.Start()
+	defer sp.Stop()
 	for stream.Next() {
 		ev := stream.Current()
 		switch output {
 		case "pretty":
+			sp.ClearLine()
 			if err := sse.PrettyAutomate(os.Stdout, ev, started, color); err != nil {
 				return fmt.Errorf("render event: %w", err)
 			}
