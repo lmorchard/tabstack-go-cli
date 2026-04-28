@@ -19,15 +19,6 @@ func jsonResult(v any) *sdk.CallToolResult {
 	}
 }
 
-// textResult wraps s in a single TextContent block — used for streaming-tool
-// results where the payload is already a plain string (the report or final
-// answer).
-func textResult(s string) *sdk.CallToolResult {
-	return &sdk.CallToolResult{
-		Content: []sdk.Content{&sdk.TextContent{Text: s}},
-	}
-}
-
 // toolError wraps a runtime error as a non-protocol tool error: IsError=true,
 // message in TextContent. The MCP SDK distinguishes this from a returned
 // `error` value, which becomes a JSON-RPC protocol-level error (wrong for
