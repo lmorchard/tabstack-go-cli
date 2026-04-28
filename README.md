@@ -230,6 +230,53 @@ tabstack version
 # → tabstack v0.1.0 (commit: a94a977, built: 2026-04-27T18:14:32Z)
 ```
 
+## MCP server
+
+`tabstack mcp` runs the CLI itself as a [Model Context Protocol](https://modelcontextprotocol.io) server, exposing every API operation as an MCP tool that can be called from Claude Code, Cursor, Continue, or any other MCP-aware client.
+
+```sh
+tabstack mcp                                       # default: stdio (for Claude Code etc.)
+tabstack mcp --transport http --listen 127.0.0.1:8080
+```
+
+The server reuses the same `TABSTACK_API_KEY` env, `--api-key` flag, and `tabstack.yaml` config as the rest of the CLI. The HTTP transport is **localhost-only by default** — exposing externally requires a reverse proxy with auth (out of scope for v1).
+
+### Tools
+
+| Name | Maps to |
+|---|---|
+| `tabstack_extract_markdown` | `extract markdown` |
+| `tabstack_extract_json` | `extract json` |
+| `tabstack_generate_json` | `generate json` |
+| `tabstack_research` | `research` |
+| `tabstack_automate` | `automate` (always non-interactive — see below) |
+
+The two streaming tools (`tabstack_research` and `tabstack_automate`) emit MCP progress notifications during the run for the same curated subset of events that `--output pretty` surfaces. Final result is the report (research) or final answer (automate) as a single text content block.
+
+### Wiring it into Claude Code
+
+Add an entry to your `~/.claude/mcp.json` (or equivalent):
+
+```json
+{
+  "mcpServers": {
+    "tabstack": {
+      "command": "/path/to/tabstack",
+      "args": ["mcp"],
+      "env": { "TABSTACK_API_KEY": "..." }
+    }
+  }
+}
+```
+
+After restart, the five `tabstack_*` tools are available in any conversation.
+
+### Limitations
+
+- **No interactive automation.** `tabstack_automate` always runs non-interactively. Tasks that need user-typed form data (passwords, etc.) will have their form-data callbacks auto-declined — use the `tabstack` CLI directly for those flows. (Future MCP-elicitation support is tracked as a follow-up issue.)
+- **No screenshots in tool results** (yet — same follow-up that covers CLI screenshot extraction).
+- **No HTTP authentication.** The `--transport http` listener is intentionally localhost-only. External binding + bearer-token auth is a follow-up.
+
 ## Composing with `jq`
 
 Because streaming output is one JSON object per line, `jq` and similar tools work naturally:
