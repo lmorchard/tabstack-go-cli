@@ -2,8 +2,10 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/lmorchard/tabstack-go-cli/internal/client"
 	mcppkg "github.com/lmorchard/tabstack-go-cli/internal/mcp"
@@ -26,7 +28,7 @@ other CLI subcommands.`,
 	RunE: runMCP,
 }
 
-func runMCP(_ *cobra.Command, _ []string) error {
+func runMCP(cmd *cobra.Command, _ []string) error {
 	if err := validateEnum("transport", mcpTransport, validMCPTransports); err != nil {
 		return err
 	}
@@ -36,7 +38,7 @@ func runMCP(_ *cobra.Command, _ []string) error {
 		return err
 	}
 	srv := mcppkg.NewServer(c, version)
-	ctx := context.Background()
+	ctx := cmd.Context()
 
 	switch mcpTransport {
 	case "stdio":
@@ -45,7 +47,21 @@ func runMCP(_ *cobra.Command, _ []string) error {
 	case "http":
 		GetLogger().Infof("MCP server starting on http://%s", mcpListen)
 		handler := sdk.NewStreamableHTTPHandler(func(*http.Request) *sdk.Server { return srv }, nil)
-		return http.ListenAndServe(mcpListen, handler) //nolint:gosec // localhost-only by default; external bind is a documented opt-in
+		httpSrv := &http.Server{
+			Addr:              mcpListen,
+			Handler:           handler,
+			ReadHeaderTimeout: 10 * time.Second,
+		}
+		go func() {
+			<-ctx.Done()
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			_ = httpSrv.Shutdown(shutdownCtx)
+		}()
+		if err := httpSrv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+			return err
+		}
+		return nil
 	}
 	return fmt.Errorf("unreachable: validateEnum should have caught %q", mcpTransport)
 }

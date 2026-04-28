@@ -22,6 +22,9 @@ func registerResearch(s *sdk.Server, c *tabstack.Client) {
 		Name: "tabstack_research",
 		Description: "Run a multi-source AI research query and return a cited markdown report. " +
 			"Use for questions that require synthesizing information from multiple web sources.",
+		InputSchema: inputSchemaWithEnums[ResearchInput](map[string][]string{
+			"mode": {"fast", "balanced"},
+		}),
 	}, func(ctx context.Context, req *sdk.CallToolRequest, in *ResearchInput) (*sdk.CallToolResult, any, error) {
 		body := tabstack.AgentResearchParams{Query: in.Query}
 		if in.Mode != "" {

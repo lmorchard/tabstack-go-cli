@@ -73,11 +73,16 @@ func registerAutomate(s *sdk.Server, c *tabstack.Client) {
 			case tabstack.AutomateEventInteractiveFormDataRequest:
 				// We can't prompt the user mid-tool-call. Auto-decline so the
 				// agent doesn't hang for two minutes waiting for input.
-				_, _ = c.Agent.AutomateInput(ctx, v.Data.RequestID, tabstack.AgentAutomateInputParams{
+				if _, err := c.Agent.AutomateInput(ctx, v.Data.RequestID, tabstack.AgentAutomateInputParams{
 					Cancelled: param.NewOpt(true),
-				})
-				emitter.emit("Form-data request auto-declined (use the CLI for interactive mode)")
-				_, _ = fmt.Fprintln(os.Stderr, "warning: tabstack_automate received an interactive:form_data:request event and auto-declined it (no interactive support in MCP yet)")
+				}); err != nil {
+					msg := fmt.Sprintf("auto-decline failed for form-data request %s: %v", v.Data.RequestID, err)
+					emitter.emit(msg)
+					_, _ = fmt.Fprintln(os.Stderr, "warning: tabstack_automate "+msg)
+				} else {
+					emitter.emit("Form-data request auto-declined (use the CLI for interactive mode)")
+					_, _ = fmt.Fprintln(os.Stderr, "warning: tabstack_automate received an interactive:form_data:request event and auto-declined it (no interactive support in MCP yet)")
+				}
 			}
 		}
 		if err := stream.Err(); err != nil {

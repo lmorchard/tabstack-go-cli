@@ -26,6 +26,9 @@ func registerGenerateJson(s *sdk.Server, c *tabstack.Client) {
 			"that conforms to a schema you provide. Use when you need a synthesized or summarized version " +
 			"of a page in a structured shape (e.g. a one-paragraph summary, a sentiment classification, " +
 			"a key-points list).",
+		InputSchema: inputSchemaWithEnums[GenerateJsonInput](map[string][]string{
+			"effort": {"min", "standard", "max"},
+		}),
 	}, func(ctx context.Context, _ *sdk.CallToolRequest, in *GenerateJsonInput) (*sdk.CallToolResult, any, error) {
 		body := tabstack.GenerateJsonParams{
 			URL:          in.URL,

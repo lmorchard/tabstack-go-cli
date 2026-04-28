@@ -23,6 +23,9 @@ func registerExtractMarkdown(s *sdk.Server, c *tabstack.Client) {
 		Name: "tabstack_extract_markdown",
 		Description: "Fetch a URL and return its main content as clean markdown. " +
 			"Use when you need the readable text of a web page without HTML or layout boilerplate.",
+		InputSchema: inputSchemaWithEnums[ExtractMarkdownInput](map[string][]string{
+			"effort": {"min", "standard", "max"},
+		}),
 	}, func(ctx context.Context, _ *sdk.CallToolRequest, in *ExtractMarkdownInput) (*sdk.CallToolResult, any, error) {
 		body := tabstack.ExtractMarkdownParams{URL: in.URL}
 		if in.Metadata {
@@ -59,6 +62,9 @@ func registerExtractJson(s *sdk.Server, c *tabstack.Client) {
 		Name: "tabstack_extract_json",
 		Description: "Fetch a URL and extract structured data conforming to a JSON Schema you provide. " +
 			"Use when you need specific fields out of a page (e.g. title, price, author).",
+		InputSchema: inputSchemaWithEnums[ExtractJsonInput](map[string][]string{
+			"effort": {"min", "standard", "max"},
+		}),
 	}, func(ctx context.Context, _ *sdk.CallToolRequest, in *ExtractJsonInput) (*sdk.CallToolResult, any, error) {
 		body := tabstack.ExtractJsonParams{
 			URL:        in.URL,
