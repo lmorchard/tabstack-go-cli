@@ -1,8 +1,13 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
+	"net/http"
 
+	"github.com/lmorchard/tabstack-go-cli/internal/client"
+	mcppkg "github.com/lmorchard/tabstack-go-cli/internal/mcp"
+	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/cobra"
 )
 
@@ -25,7 +30,24 @@ func runMCP(_ *cobra.Command, _ []string) error {
 	if err := validateEnum("transport", mcpTransport, validMCPTransports); err != nil {
 		return err
 	}
-	return fmt.Errorf("not yet implemented (Task 4 wires the server)")
+
+	c, err := client.New(GetConfig())
+	if err != nil {
+		return err
+	}
+	srv := mcppkg.NewServer(c, version)
+	ctx := context.Background()
+
+	switch mcpTransport {
+	case "stdio":
+		GetLogger().Info("MCP server starting on stdio")
+		return srv.Run(ctx, &sdk.StdioTransport{})
+	case "http":
+		GetLogger().Infof("MCP server starting on http://%s", mcpListen)
+		handler := sdk.NewStreamableHTTPHandler(func(*http.Request) *sdk.Server { return srv }, nil)
+		return http.ListenAndServe(mcpListen, handler) //nolint:gosec // localhost-only by default; external bind is a documented opt-in
+	}
+	return fmt.Errorf("unreachable: validateEnum should have caught %q", mcpTransport)
 }
 
 func init() {
