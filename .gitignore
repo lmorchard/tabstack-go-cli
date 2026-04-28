@@ -34,6 +34,9 @@ Thumbs.db
 # Config files (keep examples)
 *.yaml
 !*.yaml.example
+.env
+.env.*
+!.env.example
 
 # Build artifacts
 build/
