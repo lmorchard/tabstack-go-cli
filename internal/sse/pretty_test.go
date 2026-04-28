@@ -332,6 +332,83 @@ func TestPrettyAutomate_ColorToggle(t *testing.T) {
 	}
 }
 
+// agent:action with ref but no value should not print value="".
+func TestPrettyAutomate_AgentAction_RefOnly(t *testing.T) {
+	ev := automateFromJSON(t, `{
+		"event": "agent:action",
+		"data": {
+			"action": "click",
+			"ref": "E42",
+			"iterationId": "iter-1",
+			"timestamp": 0
+		}
+	}`)
+	var buf bytes.Buffer
+	if err := PrettyAutomate(&buf, ev, fixedStart(), false); err != nil {
+		t.Fatalf("PrettyAutomate: %v", err)
+	}
+	got := buf.String()
+	if !strings.Contains(got, "ref=E42") {
+		t.Errorf("missing ref: %q", got)
+	}
+	if strings.Contains(got, `value=""`) {
+		t.Errorf("ref-only action should not print empty value=: %q", got)
+	}
+}
+
+// API-supplied content must not be able to inject ANSI escape sequences into
+// the terminal, even when --color=never. Verify control chars are stripped
+// from continuation-line content and from inline fields.
+func TestPretty_StripsTerminalEscapesFromAPIContent(t *testing.T) {
+	// "\x1b[2J" is the "clear screen" CSI; if it survived to stdout it would
+	// erase the user's terminal scrollback.
+	evil := "before\x1b[2Jafter"
+	ev := automateFromJSON(t, `{
+		"event": "complete",
+		"data": {
+			"finalAnswer": `+jsonString(evil)+`,
+			"success": true,
+			"stats": {}
+		}
+	}`)
+	var buf bytes.Buffer
+	if err := PrettyAutomate(&buf, ev, fixedStart(), false); err != nil {
+		t.Fatalf("PrettyAutomate: %v", err)
+	}
+	got := buf.String()
+	if strings.Contains(got, "\x1b") {
+		t.Errorf("escape sequence leaked through to output: %q", got)
+	}
+	if !strings.Contains(got, "before") || !strings.Contains(got, "after") {
+		t.Errorf("legitimate text was dropped: %q", got)
+	}
+}
+
+// content() trims a single trailing newline (so the renderer's own newline
+// doesn't double up) but leaves leading whitespace and internal structure.
+func TestContent(t *testing.T) {
+	tests := []struct {
+		in, want string
+	}{
+		{"plain", "plain"},
+		{"with trailing newline\n", "with trailing newline"},
+		{"  leading whitespace stays", "  leading whitespace stays"},
+		{"para 1\n\npara 2\n\npara 3", "para 1\n\npara 2\n\npara 3"},
+		// Only the ESC byte (\x1b) is a control char and gets stripped; the
+		// printable "[31m" / "[0m" bytes remain as inert text. Without the
+		// leading ESC the terminal won't interpret them as color codes,
+		// which is the security-relevant outcome.
+		{"strip\x1b[31mthis\x1b[0m", "strip[31mthis[0m"},
+		{"keep\ttabs\tand\nnewlines", "keep\ttabs\tand\nnewlines"},
+	}
+	for _, tc := range tests {
+		got := content(tc.in)
+		if got != tc.want {
+			t.Errorf("content(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}
+
 // oneLine collapses whitespace but never truncates.
 func TestOneLine(t *testing.T) {
 	tests := []struct {

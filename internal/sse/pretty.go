@@ -5,6 +5,7 @@ import (
 	"io"
 	"strings"
 	"time"
+	"unicode"
 
 	tabstack "github.com/stainless-sdks/tabstack-go"
 )
@@ -14,12 +15,42 @@ func elapsed(start time.Time) string {
 	return fmt.Sprintf("[%s]", time.Since(start).Round(time.Second))
 }
 
+// sanitize strips control characters from API-supplied strings, keeping `\n`
+// and `\t` so multi-line content is preserved. Without this an attacker-
+// controlled response could inject ANSI escape sequences (rewriting earlier
+// terminal lines, changing the window title, etc.) — even when the renderer
+// runs with --color=never, since the dangerous sequences would come from the
+// payload, not the styler.
+func sanitize(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	for _, r := range s {
+		switch {
+		case r == '\n' || r == '\t':
+			b.WriteRune(r)
+		case unicode.IsControl(r):
+			// drop
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+// content prepares an API-supplied multi-line string for terminal display:
+// sanitizes control characters (preventing escape injection) and trims a
+// trailing newline so the renderer's own newline doesn't double up. Internal
+// newlines, tabs, and leading whitespace are preserved verbatim.
+func content(s string) string {
+	return strings.TrimRight(sanitize(s), "\n")
+}
+
 // oneLine collapses internal whitespace (including newlines) into single
-// spaces. Used for fields that render inline in the event header — multi-line
-// content there would break the prefix layout. Does NOT truncate; full
-// content is preserved, just on one line.
+// spaces and strips control characters. Used for fields that render inline
+// in the event header — multi-line content there would break the prefix
+// layout. Does NOT truncate; full content is preserved, just on one line.
 func oneLine(s string) string {
-	return strings.TrimSpace(strings.Join(strings.Fields(s), " "))
+	return strings.TrimSpace(strings.Join(strings.Fields(sanitize(s)), " "))
 }
 
 // style applies ANSI SGR escapes when enabled. Hand-rolled rather than
@@ -75,17 +106,22 @@ func PrettyAutomate(w io.Writer, ev tabstack.AutomateEventUnion, startedAt time.
 		_, err := fmt.Fprintf(w, "%s iteration %d\n", s.header(prefix, "agent:step"), int(v.Data.CurrentIteration))
 		return err
 	case tabstack.AutomateEventAgentReasoned:
-		_, err := fmt.Fprintf(w, "%s\n%s\n", s.header(prefix, "agent:reasoned"), strings.TrimSpace(v.Data.Reasoning))
+		_, err := fmt.Fprintf(w, "%s\n%s\n", s.header(prefix, "agent:reasoned"), content(v.Data.Reasoning))
 		return err
 	case tabstack.AutomateEventAgentAction:
 		switch {
-		case v.Data.Ref != "":
+		case v.Data.Ref != "" && v.Data.Value != "":
 			_, err := fmt.Fprintf(w, "%s %s ref=%s value=%q\n",
 				s.header(prefix, "agent:action"), s.bold(v.Data.Action), v.Data.Ref, oneLine(v.Data.Value))
 			return err
+		case v.Data.Ref != "":
+			_, err := fmt.Fprintf(w, "%s %s ref=%s\n",
+				s.header(prefix, "agent:action"), s.bold(v.Data.Action), v.Data.Ref)
+			return err
 		case v.Data.Value != "":
+			// "done"-style action whose value can be a multi-paragraph answer.
 			_, err := fmt.Fprintf(w, "%s %s\n%s\n",
-				s.header(prefix, "agent:action"), s.bold(v.Data.Action), strings.TrimSpace(v.Data.Value))
+				s.header(prefix, "agent:action"), s.bold(v.Data.Action), content(v.Data.Value))
 			return err
 		default:
 			_, err := fmt.Fprintf(w, "%s %s\n", s.header(prefix, "agent:action"), s.bold(v.Data.Action))
@@ -126,14 +162,14 @@ func PrettyAutomate(w io.Writer, ev tabstack.AutomateEventUnion, startedAt time.
 		}
 		if v.Data.FinalAnswer != "" {
 			_, err := fmt.Fprintf(w, "%s %s\n%s\n",
-				s.header(prefix, "complete"), mark, strings.TrimSpace(v.Data.FinalAnswer))
+				s.header(prefix, "complete"), mark, content(v.Data.FinalAnswer))
 			return err
 		}
 		_, err := fmt.Fprintf(w, "%s %s\n", s.header(prefix, "complete"), mark)
 		return err
 	case tabstack.AutomateEventError:
 		_, err := fmt.Fprintf(w, "%s %s\n%s\n",
-			s.dim(prefix), s.red("error"), strings.TrimSpace(v.Data.Error.Message))
+			s.dim(prefix), s.red("error"), content(v.Data.Error.Message))
 		return err
 	default:
 		// Unknown / unspecialized variant. Fall back to event-name only.
@@ -187,11 +223,11 @@ func PrettyResearch(w io.Writer, ev tabstack.ResearchEventUnion, startedAt time.
 		_, err := fmt.Fprintf(w, "%s — attempt %d\n", s.header(prefix, "writing:end"), int(v.Data.Attempt))
 		return err
 	case tabstack.ResearchEventComplete:
-		_, err := fmt.Fprintf(w, "%s\n%s\n", s.header(prefix, "complete"), strings.TrimSpace(v.Data.Report))
+		_, err := fmt.Fprintf(w, "%s\n%s\n", s.header(prefix, "complete"), content(v.Data.Report))
 		return err
 	case tabstack.ResearchEventError:
 		_, err := fmt.Fprintf(w, "%s %s\n%s\n",
-			s.dim(prefix), s.red("error"), strings.TrimSpace(v.Data.Error.Message))
+			s.dim(prefix), s.red("error"), content(v.Data.Error.Message))
 		return err
 	default:
 		// Unknown / unspecialized variant. Fall back to event-name only.
