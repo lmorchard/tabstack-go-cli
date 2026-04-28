@@ -24,11 +24,14 @@ var (
 var researchCmd = &cobra.Command{
 	Use:   "research <query>",
 	Short: "Stream a multi-source AI research run",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.MaximumNArgs(1),
 	RunE:  runResearch,
 }
 
-func runResearch(_ *cobra.Command, args []string) error {
+func runResearch(cmd *cobra.Command, args []string) error {
+	if len(args) == 0 {
+		return cmd.Help()
+	}
 	if err := validateEnum("mode", researchMode, validResearchModes); err != nil {
 		return err
 	}

@@ -32,11 +32,14 @@ var (
 var automateCmd = &cobra.Command{
 	Use:   "automate <task>",
 	Short: "Stream an AI browser-automation run",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.MaximumNArgs(1),
 	RunE:  runAutomate,
 }
 
-func runAutomate(_ *cobra.Command, args []string) error {
+func runAutomate(cmd *cobra.Command, args []string) error {
+	if len(args) == 0 {
+		return cmd.Help()
+	}
 	if err := validateEnum("output", automateOutput, validStreamOutputs); err != nil {
 		return err
 	}
@@ -174,11 +177,14 @@ var automateInputCmd = &cobra.Command{
 by the requestId emitted in an interactive:form_data:request SSE event.
 
 Provide either --values <file> (JSON: {"E1":"alice","E2":"bob"}) or --cancel.`,
-	Args: cobra.ExactArgs(1),
+	Args: cobra.MaximumNArgs(1),
 	RunE: runAutomateInput,
 }
 
-func runAutomateInput(_ *cobra.Command, args []string) error {
+func runAutomateInput(cmd *cobra.Command, args []string) error {
+	if len(args) == 0 {
+		return cmd.Help()
+	}
 	c, err := client.New(GetConfig())
 	if err != nil {
 		return err

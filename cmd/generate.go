@@ -31,11 +31,14 @@ var (
 var generateJsonCmd = &cobra.Command{
 	Use:   "json <url>",
 	Short: "Fetch a URL and AI-transform it into JSON per a schema and instructions",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.MaximumNArgs(1),
 	RunE:  runGenerateJson,
 }
 
-func runGenerateJson(_ *cobra.Command, args []string) error {
+func runGenerateJson(cmd *cobra.Command, args []string) error {
+	if len(args) == 0 {
+		return cmd.Help()
+	}
 	if err := validateEnum("effort", generateJsonEffort, validEfforts); err != nil {
 		return err
 	}
