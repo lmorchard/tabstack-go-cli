@@ -16,6 +16,7 @@ var (
 	validResearchModes = []string{"fast", "balanced"}
 	validStreamOutputs = []string{"json", "pretty"}
 	validColorModes    = []string{"auto", "always", "never"}
+	validMCPTransports = []string{"stdio", "http"}
 )
 
 // resolveStreamColor maps the --color flag's "auto|always|never" choice into
