@@ -56,3 +56,28 @@ func TestStopWithoutStartIsSafe(t *testing.T) {
 	s := New(&bytes.Buffer{}, true)
 	s.Stop()
 }
+
+// Regression: Stop used to nil out s.stop/s.done before signalling, but the
+// goroutine read s.stop directly inside its select. After nilling, the
+// `case <-s.stop:` arm became `case <-nil:` (blocks forever), so Stop
+// deadlocked on <-done until go test's 10-minute timeout fired. This test
+// runs many Start/Stop cycles tightly so any reintroduction of the race
+// shows up as a test-timeout in seconds, not in 600s.
+func TestStartStopCyclesDoNotDeadlock(t *testing.T) {
+	s := New(&bytes.Buffer{}, true)
+	s.interval = time.Millisecond // fast ticks to maximize the race window
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for i := 0; i < 20; i++ {
+			s.Start()
+			time.Sleep(2 * time.Millisecond)
+			s.Stop()
+		}
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Start/Stop cycles deadlocked")
+	}
+}

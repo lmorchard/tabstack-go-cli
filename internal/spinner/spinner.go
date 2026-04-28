@@ -57,8 +57,11 @@ func (s *Spinner) Start() {
 	}
 	s.stop = make(chan struct{})
 	s.done = make(chan struct{})
+	stop, done := s.stop, s.done
 	s.mu.Unlock()
-	go s.run()
+	// Pass the channels directly: Stop nils the fields when shutting down, so
+	// the goroutine can't read them safely from s.
+	go s.run(stop, done)
 }
 
 // Stop halts the ticker, clears the spinner line, and waits for the goroutine
@@ -95,15 +98,15 @@ func (s *Spinner) ClearLine() {
 	s.visible = false
 }
 
-func (s *Spinner) run() {
+func (s *Spinner) run(stop, done chan struct{}) {
 	ticker := time.NewTicker(s.interval)
 	defer ticker.Stop()
-	defer close(s.done)
+	defer close(done)
 
 	var i int
 	for {
 		select {
-		case <-s.stop:
+		case <-stop:
 			return
 		case <-ticker.C:
 			s.mu.Lock()
