@@ -259,14 +259,14 @@ The fastest path is the `claude mcp add` CLI:
 
 ```sh
 claude mcp add --transport stdio --scope user \
-  --env TABSTACK_API_KEY=sk-... \
+  --env=TABSTACK_API_KEY=sk-... \
   tabstack -- /usr/local/bin/tabstack mcp
 ```
 
 - `--scope user` writes to `~/.claude.json` (available across all projects). Use `--scope project` to write to `.mcp.json` in the current repo (checked in, shared with collaborators), or `--scope local` for project-private.
 - The `--` separator is required — everything after it is the command + args Claude Code will spawn.
 - The `command` must be an **absolute path** or on `$PATH`; Claude Code spawns the binary directly without going through a shell, so `~`, glob expansion, and `which` lookups don't apply.
-- Repeat `--env KEY=VALUE` for additional env vars (e.g. `--env TABSTACK_BASE_URL=...`).
+- `--env` requires the `=` glue form (`--env=KEY=VALUE`); the space-separated form (`--env KEY=VALUE`) is parsed as two arguments and the value is dropped. Repeat the flag for additional env vars (e.g. `--env=TABSTACK_BASE_URL=...`).
 
 If you'd rather edit JSON directly, the equivalent `.mcp.json` (project) or `~/.claude.json` (user) entry is:
 
