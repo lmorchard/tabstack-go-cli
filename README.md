@@ -255,21 +255,69 @@ The two streaming tools (`tabstack_research` and `tabstack_automate`) emit MCP p
 
 ### Wiring it into Claude Code
 
-Add an entry to your `~/.claude/mcp.json` (or equivalent):
+The fastest path is the `claude mcp add` CLI:
+
+```sh
+claude mcp add --transport stdio --scope user \
+  --env TABSTACK_API_KEY=sk-... \
+  tabstack -- /usr/local/bin/tabstack mcp
+```
+
+- `--scope user` writes to `~/.claude.json` (available across all projects). Use `--scope project` to write to `.mcp.json` in the current repo (checked in, shared with collaborators), or `--scope local` for project-private.
+- The `--` separator is required — everything after it is the command + args Claude Code will spawn.
+- The `command` must be an **absolute path** or on `$PATH`; Claude Code spawns the binary directly without going through a shell, so `~`, glob expansion, and `which` lookups don't apply.
+- Repeat `--env KEY=VALUE` for additional env vars (e.g. `--env TABSTACK_BASE_URL=...`).
+
+If you'd rather edit JSON directly, the equivalent `.mcp.json` (project) or `~/.claude.json` (user) entry is:
 
 ```json
 {
   "mcpServers": {
     "tabstack": {
-      "command": "/path/to/tabstack",
+      "type": "stdio",
+      "command": "/usr/local/bin/tabstack",
       "args": ["mcp"],
-      "env": { "TABSTACK_API_KEY": "..." }
+      "env": {
+        "TABSTACK_API_KEY": "${TABSTACK_API_KEY}"
+      }
     }
   }
 }
 ```
 
-After restart, the five `tabstack_*` tools are available in any conversation.
+The `${VAR}` and `${VAR:-default}` syntax expands env vars from your shell at server-launch time — handy for keeping the literal key out of files you commit.
+
+#### Alternative: rely on `tabstack.yaml`
+
+If you'd rather not put the API key in either Claude's config or your shell environment, drop a `tabstack.yaml` in a directory of your choosing and point the launcher at it via `--config`:
+
+```yaml
+# /Users/you/.config/tabstack/tabstack.yaml
+api_key: sk-...
+```
+
+```json
+{
+  "mcpServers": {
+    "tabstack": {
+      "type": "stdio",
+      "command": "/usr/local/bin/tabstack",
+      "args": ["mcp", "--config", "/Users/you/.config/tabstack/tabstack.yaml"]
+    }
+  }
+}
+```
+
+Same precedence as the rest of the CLI: flag > env > config file > defaults. Any combination works; pick whichever fits how you manage secrets.
+
+#### Verifying the wire-up
+
+```sh
+claude mcp list           # tabstack should be listed with status "connected"
+claude mcp get tabstack   # full effective config + scope
+```
+
+Inside a Claude Code session, `/mcp` prints the same info plus tool counts. After a fresh setup you may need to restart Claude Code (or run `/mcp` and hit refresh) to pick up the new server. Once connected, the five `tabstack_*` tools are available in any conversation.
 
 ### Limitations
 
