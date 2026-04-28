@@ -20,5 +20,6 @@ func NewServer(client *tabstack.Client, version string) *sdk.Server {
 	}, nil)
 	registerExtractMarkdown(s, client)
 	registerExtractJson(s, client)
+	registerGenerateJson(s, client)
 	return s
 }
