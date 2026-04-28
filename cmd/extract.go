@@ -150,6 +150,8 @@ func initExtractJson() {
 	extractJsonCmd.Flags().StringVar(&extractJsonEffort, "effort", "", "effort level: min, standard, or max")
 	extractJsonCmd.Flags().StringVar(&extractJsonGeo, "geo", "", "ISO 3166-1 alpha-2 country code")
 
-	_ = extractJsonCmd.MarkFlagRequired("schema")
+	// --schema is required, but enforced inside RunE (after the empty-args
+	// help check) instead of via MarkFlagRequired, so bare `tabstack extract
+	// json` shows help rather than "required flag(s) ... not set".
 	extractCmd.AddCommand(extractJsonCmd)
 }

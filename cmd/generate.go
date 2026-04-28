@@ -39,6 +39,9 @@ func runGenerateJson(cmd *cobra.Command, args []string) error {
 	if len(args) == 0 {
 		return cmd.Help()
 	}
+	if generateJsonSchemaPath == "" {
+		return fmt.Errorf("--schema is required")
+	}
 	if err := validateEnum("effort", generateJsonEffort, validEfforts); err != nil {
 		return err
 	}
@@ -110,8 +113,9 @@ func init() {
 	generateJsonCmd.Flags().StringVar(&generateJsonEffort, "effort", "", "effort level: min, standard, or max")
 	generateJsonCmd.Flags().StringVar(&generateJsonGeo, "geo", "", "ISO 3166-1 alpha-2 country code")
 
-	_ = generateJsonCmd.MarkFlagRequired("schema")
-
+	// --schema is required, but enforced inside RunE (after the empty-args
+	// help check) instead of via MarkFlagRequired, so bare `tabstack generate
+	// json` shows help rather than "required flag(s) ... not set".
 	generateCmd.AddCommand(generateJsonCmd)
 	rootCmd.AddCommand(generateCmd)
 }
