@@ -56,6 +56,6 @@ func TestToolError_SetsIsErrorAndUsesMessage(t *testing.T) {
 func TestJSONResult_MarshalFailureBecomesToolError(t *testing.T) {
 	got := jsonResult(map[string]any{"chan": make(chan int)})
 	if !got.IsError {
-		t.Fatal("expected IsError=true for unmarshal-able input")
+		t.Fatal("expected IsError=true for non-marshalable input")
 	}
 }
