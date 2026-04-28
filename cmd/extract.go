@@ -29,11 +29,14 @@ var (
 var extractMarkdownCmd = &cobra.Command{
 	Use:   "markdown <url>",
 	Short: "Fetch a URL and convert to clean markdown",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.MaximumNArgs(1),
 	RunE:  runExtractMarkdown,
 }
 
-func runExtractMarkdown(_ *cobra.Command, args []string) error {
+func runExtractMarkdown(cmd *cobra.Command, args []string) error {
+	if len(args) == 0 {
+		return cmd.Help()
+	}
 	if err := validateEnum("effort", extractMarkdownEffort, validEfforts); err != nil {
 		return err
 	}
@@ -91,11 +94,14 @@ var (
 var extractJsonCmd = &cobra.Command{
 	Use:   "json <url>",
 	Short: "Fetch a URL and extract structured data per a JSON Schema",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.MaximumNArgs(1),
 	RunE:  runExtractJson,
 }
 
-func runExtractJson(_ *cobra.Command, args []string) error {
+func runExtractJson(cmd *cobra.Command, args []string) error {
+	if len(args) == 0 {
+		return cmd.Help()
+	}
 	if extractJsonSchemaPath == "" {
 		return fmt.Errorf("--schema is required")
 	}
@@ -144,6 +150,8 @@ func initExtractJson() {
 	extractJsonCmd.Flags().StringVar(&extractJsonEffort, "effort", "", "effort level: min, standard, or max")
 	extractJsonCmd.Flags().StringVar(&extractJsonGeo, "geo", "", "ISO 3166-1 alpha-2 country code")
 
-	_ = extractJsonCmd.MarkFlagRequired("schema")
+	// --schema is required, but enforced inside RunE (after the empty-args
+	// help check) instead of via MarkFlagRequired, so bare `tabstack extract
+	// json` shows help rather than "required flag(s) ... not set".
 	extractCmd.AddCommand(extractJsonCmd)
 }

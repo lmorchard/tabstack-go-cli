@@ -32,11 +32,14 @@ var (
 var automateCmd = &cobra.Command{
 	Use:   "automate <task>",
 	Short: "Stream an AI browser-automation run",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.MaximumNArgs(1),
 	RunE:  runAutomate,
 }
 
-func runAutomate(_ *cobra.Command, args []string) error {
+func runAutomate(cmd *cobra.Command, args []string) error {
+	if len(args) == 0 {
+		return cmd.Help()
+	}
 	if err := validateEnum("output", automateOutput, validStreamOutputs); err != nil {
 		return err
 	}
@@ -93,9 +96,10 @@ func runAutomate(_ *cobra.Command, args []string) error {
 	enc := json.NewEncoder(os.Stdout)
 	started := time.Now()
 	color := resolveStreamColor(automateColor)
+	output := resolveStreamOutput(automateOutput)
 	for stream.Next() {
 		ev := stream.Current()
-		switch automateOutput {
+		switch output {
 		case "pretty":
 			if err := sse.PrettyAutomate(os.Stdout, ev, started, color); err != nil {
 				return fmt.Errorf("render event: %w", err)
@@ -174,11 +178,14 @@ var automateInputCmd = &cobra.Command{
 by the requestId emitted in an interactive:form_data:request SSE event.
 
 Provide either --values <file> (JSON: {"E1":"alice","E2":"bob"}) or --cancel.`,
-	Args: cobra.ExactArgs(1),
+	Args: cobra.MaximumNArgs(1),
 	RunE: runAutomateInput,
 }
 
-func runAutomateInput(_ *cobra.Command, args []string) error {
+func runAutomateInput(cmd *cobra.Command, args []string) error {
+	if len(args) == 0 {
+		return cmd.Help()
+	}
 	c, err := client.New(GetConfig())
 	if err != nil {
 		return err
@@ -227,7 +234,7 @@ func init() {
 	automateCmd.Flags().StringVar(&automateGeo, "geo", "", "ISO 3166-1 alpha-2 country code")
 	automateCmd.Flags().Int64Var(&automateMaxIter, "max-iterations", 0, "max task iterations (0 = SDK default)")
 	automateCmd.Flags().Int64Var(&automateMaxValid, "max-validation-attempts", 0, "max validation attempts (0 = SDK default)")
-	automateCmd.Flags().StringVar(&automateOutput, "output", "json", "stream output format: json (one event per line) or pretty (human-readable)")
+	automateCmd.Flags().StringVar(&automateOutput, "output", "auto", "stream output format: auto (pretty on a TTY, json otherwise), json (one event per line), or pretty (human-readable)")
 	automateCmd.Flags().StringVar(&automateColor, "color", "auto", "color in pretty output: auto (TTY only, respects NO_COLOR), always, or never")
 
 	automateInputCmd.Flags().StringVar(&automateInputValuesPath, "values", "", `path to JSON file mapping field ref -> value`)

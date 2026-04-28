@@ -24,11 +24,14 @@ var (
 var researchCmd = &cobra.Command{
 	Use:   "research <query>",
 	Short: "Stream a multi-source AI research run",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.MaximumNArgs(1),
 	RunE:  runResearch,
 }
 
-func runResearch(_ *cobra.Command, args []string) error {
+func runResearch(cmd *cobra.Command, args []string) error {
+	if len(args) == 0 {
+		return cmd.Help()
+	}
 	if err := validateEnum("mode", researchMode, validResearchModes); err != nil {
 		return err
 	}
@@ -57,7 +60,7 @@ func runResearch(_ *cobra.Command, args []string) error {
 	}
 
 	stream := c.Agent.ResearchStreaming(context.Background(), body)
-	if researchOutput == "pretty" {
+	if resolveStreamOutput(researchOutput) == "pretty" {
 		defer func() { _ = stream.Close() }()
 		started := time.Now()
 		color := resolveStreamColor(researchColor)
@@ -81,7 +84,7 @@ func init() {
 	researchCmd.Flags().StringVar(&researchMode, "mode", "", "research mode: fast or balanced")
 	researchCmd.Flags().BoolVar(&researchNocache, "nocache", false, "bypass cache")
 	researchCmd.Flags().Int64Var(&researchFetchTimeout, "fetch-timeout", 0, "per-fetch timeout in seconds (0 = SDK default)")
-	researchCmd.Flags().StringVar(&researchOutput, "output", "json", "stream output format: json (one event per line) or pretty (human-readable)")
+	researchCmd.Flags().StringVar(&researchOutput, "output", "auto", "stream output format: auto (pretty on a TTY, json otherwise), json (one event per line), or pretty (human-readable)")
 	researchCmd.Flags().StringVar(&researchColor, "color", "auto", "color in pretty output: auto (TTY only, respects NO_COLOR), always, or never")
 
 	rootCmd.AddCommand(researchCmd)

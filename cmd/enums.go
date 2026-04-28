@@ -14,10 +14,26 @@ import (
 var (
 	validEfforts       = []string{"min", "standard", "max"}
 	validResearchModes = []string{"fast", "balanced"}
-	validStreamOutputs = []string{"json", "pretty"}
+	validStreamOutputs = []string{"auto", "json", "pretty"}
 	validColorModes    = []string{"auto", "always", "never"}
 	validMCPTransports = []string{"stdio", "http"}
 )
+
+// resolveStreamOutput maps the --output flag's "auto|json|pretty" choice into
+// the concrete renderer to use. "auto" picks pretty when stdout is a TTY and
+// json otherwise — so interactive use gets human-readable output by default
+// while shell pipelines (`tabstack research foo | jq ...`) keep getting JSON.
+func resolveStreamOutput(mode string) string {
+	switch mode {
+	case "json", "pretty":
+		return mode
+	default: // "auto" or empty
+		if isTerminal(os.Stdout) {
+			return "pretty"
+		}
+		return "json"
+	}
+}
 
 // resolveStreamColor maps the --color flag's "auto|always|never" choice into
 // the bool the pretty renderer takes. "auto" enables color when stdout is a
