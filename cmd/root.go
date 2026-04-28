@@ -1,8 +1,11 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/lmorchard/tabstack-go-cli/internal/config"
 	"github.com/sirupsen/logrus"
@@ -35,9 +38,11 @@ purpose and usage of your CLI tool.`,
 
 // Execute adds all child commands to the root command and sets appropriate flags.
 func Execute() {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 	// Cobra prints "Error: ..." to stderr itself when SilenceErrors is false
 	// (the default). All we do here is propagate the non-zero exit.
-	if err := rootCmd.Execute(); err != nil {
+	if err := rootCmd.ExecuteContext(ctx); err != nil {
 		os.Exit(1)
 	}
 }

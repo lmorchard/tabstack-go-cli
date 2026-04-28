@@ -18,6 +18,7 @@ The CLI exposes one top-level command per API capability (no `agent` parent grou
 | `research <query>` | SSE-streamed cited research |
 | `automate <task>` | SSE-streamed browser automation; supports interactive form-data callbacks |
 | `automate input <request-id>` | Reply to an in-flight `automate` form-data request (2-min window) |
+| `mcp` | Run as an MCP server (stdio for Claude Code, or HTTP localhost); exposes every operation above as a `tabstack_*` tool |
 
 ## Common Commands
 
@@ -54,6 +55,7 @@ Run a single test: `go test ./internal/foo -run TestName -v`.
 - `internal/schema` — loads JSON Schema documents from a path or `-` (stdin). Returns `any` for direct use as the SDK's `JsonSchema` field.
 - `internal/sse` — generic JSON-lines writer for any `*ssestream.Stream[T]`-like source. Used by `research`. (`automate` inlines its own drain loop because it interleaves event emit with interactive callbacks.)
 - `internal/interactive` — `Prompter` interface (TTY or file-source) and `Submitter` interface (wraps `Agent.AutomateInput`). The `--interactive` flag on `automate` engages this; `--input-from FILE` substitutes the file prompter for non-TTY runs.
+- `internal/mcp` — embedded MCP server. `NewServer(*tabstack.Client, version)` returns a `*mcp.Server` with all five `tabstack_*` tools registered. Used by `cmd/mcp.go`. Streaming tools (`research`, `automate`) emit MCP progress notifications via the curated event filters in `progress.go`, mirroring the `internal/sse/pretty` event subset. The `automate` handler always runs the API in non-interactive mode and auto-declines form-data callbacks — interactive support via MCP elicitation is a follow-up.
 
 ## CI / Releases
 

@@ -18,7 +18,10 @@ func NewServer(client *tabstack.Client, version string) *sdk.Server {
 		Name:    "tabstack",
 		Version: version,
 	}, nil)
-	// Tool registrations land here in Phase 3+.
-	_ = client
+	registerExtractMarkdown(s, client)
+	registerExtractJson(s, client)
+	registerGenerateJson(s, client)
+	registerResearch(s, client)
+	registerAutomate(s, client)
 	return s
 }
