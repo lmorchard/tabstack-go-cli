@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/lmorchard/tabstack-go-cli/internal/client"
+	"github.com/lmorchard/tabstack-go-cli/internal/spinner"
 	"github.com/lmorchard/tabstack-go-cli/internal/sse"
 	"github.com/spf13/cobra"
 	tabstack "github.com/stainless-sdks/tabstack-go"
@@ -64,7 +65,11 @@ func runResearch(cmd *cobra.Command, args []string) error {
 		defer func() { _ = stream.Close() }()
 		started := time.Now()
 		color := resolveStreamColor(researchColor)
+		sp := spinner.New(os.Stdout, isTerminal(os.Stdout))
+		sp.Start()
+		defer sp.Stop()
 		for stream.Next() {
+			sp.ClearLine()
 			if err := sse.PrettyResearch(os.Stdout, stream.Current(), started, color); err != nil {
 				return fmt.Errorf("render event: %w", err)
 			}
