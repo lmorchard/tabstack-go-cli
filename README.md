@@ -143,7 +143,8 @@ Stream a multi-source AI research run. Output is one JSON event per line on stdo
 | `--mode {fast\|balanced}` | `fast` is single-iteration (~10–30s); `balanced` runs multiple iterations |
 | `--nocache` | Bypass cache |
 | `--fetch-timeout N` | Per-fetch timeout in seconds (0 = SDK default) |
-| `--output {json\|pretty}` | `json` (default) emits one JSON object per line; `pretty` renders human-readable lines like `[12s] searching:end — found 9 URL(s), 3 new` |
+| `--output {json\|pretty}` | `json` (default) emits one JSON object per line; `pretty` renders human-readable lines like `[12s] searching:end — found 9 URL(s), 3 new`. The final `complete` event prints its full report verbatim on continuation lines |
+| `--color {auto\|always\|never}` | Color in pretty output. `auto` (default) enables color when stdout is a TTY and `NO_COLOR` is not set |
 
 ```sh
 tabstack research "Effects of microplastics on marine life" --mode fast
@@ -166,7 +167,8 @@ Stream an AI browser-automation run that interprets a natural-language task. Out
 | `--geo CC` | Country code for geotargeting |
 | `--max-iterations N` | Max task iterations (0 = SDK default) |
 | `--max-validation-attempts N` | Max validation attempts (0 = SDK default) |
-| `--output {json\|pretty}` | `json` (default) emits one JSON object per line; `pretty` renders human-readable lines like `[12s] browser:navigated https://example.com — "Example Domain"` |
+| `--output {json\|pretty}` | `json` (default) emits one JSON object per line; `pretty` renders human-readable lines like `[12s] browser:navigated https://example.com — "Example Domain"`. The final `complete` event and `agent:reasoned` events print their full content verbatim on continuation lines |
+| `--color {auto\|always\|never}` | Color in pretty output. `auto` (default) enables color when stdout is a TTY and `NO_COLOR` is not set |
 
 ```sh
 tabstack automate "Visit https://example.com and report the page title" \
