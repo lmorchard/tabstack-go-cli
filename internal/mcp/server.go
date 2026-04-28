@@ -21,5 +21,7 @@ func NewServer(client *tabstack.Client, version string) *sdk.Server {
 	registerExtractMarkdown(s, client)
 	registerExtractJson(s, client)
 	registerGenerateJson(s, client)
+	registerResearch(s, client)
+	registerAutomate(s, client)
 	return s
 }
