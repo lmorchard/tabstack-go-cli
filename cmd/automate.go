@@ -26,6 +26,7 @@ var (
 	automateMaxIter     int64
 	automateMaxValid    int64
 	automateOutput      string
+	automateColor       string
 )
 
 var automateCmd = &cobra.Command{
@@ -37,6 +38,9 @@ var automateCmd = &cobra.Command{
 
 func runAutomate(_ *cobra.Command, args []string) error {
 	if err := validateEnum("output", automateOutput, validStreamOutputs); err != nil {
+		return err
+	}
+	if err := validateEnum("color", automateColor, validColorModes); err != nil {
 		return err
 	}
 	ctx := context.Background()
@@ -88,11 +92,12 @@ func runAutomate(_ *cobra.Command, args []string) error {
 
 	enc := json.NewEncoder(os.Stdout)
 	started := time.Now()
+	color := resolveStreamColor(automateColor)
 	for stream.Next() {
 		ev := stream.Current()
 		switch automateOutput {
 		case "pretty":
-			if err := sse.PrettyAutomate(os.Stdout, ev, started); err != nil {
+			if err := sse.PrettyAutomate(os.Stdout, ev, started, color); err != nil {
 				return fmt.Errorf("render event: %w", err)
 			}
 		default:
@@ -223,6 +228,7 @@ func init() {
 	automateCmd.Flags().Int64Var(&automateMaxIter, "max-iterations", 0, "max task iterations (0 = SDK default)")
 	automateCmd.Flags().Int64Var(&automateMaxValid, "max-validation-attempts", 0, "max validation attempts (0 = SDK default)")
 	automateCmd.Flags().StringVar(&automateOutput, "output", "json", "stream output format: json (one event per line) or pretty (human-readable)")
+	automateCmd.Flags().StringVar(&automateColor, "color", "auto", "color in pretty output: auto (TTY only, respects NO_COLOR), always, or never")
 
 	automateInputCmd.Flags().StringVar(&automateInputValuesPath, "values", "", `path to JSON file mapping field ref -> value`)
 	automateInputCmd.Flags().BoolVar(&automateInputCancel, "cancel", false, "cancel the request instead of providing values")

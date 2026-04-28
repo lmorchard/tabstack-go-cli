@@ -9,159 +9,193 @@ import (
 	tabstack "github.com/stainless-sdks/tabstack-go"
 )
 
-// truncWidth caps long strings (reasoning, reports, messages) when emitted
-// inline. Full content is always available in the `--output json` mode.
-const truncWidth = 140
-
 // elapsed renders a coarse "[12s]" / "[1m23s]" prefix for the line.
 func elapsed(start time.Time) string {
 	return fmt.Sprintf("[%s]", time.Since(start).Round(time.Second))
 }
 
-// trunc returns s shortened to at most n runes, with an ellipsis appended if
-// truncation occurred. Whitespace is collapsed so multi-line text fits on
-// one terminal line. Rune-safe — never splits a multi-byte UTF-8 sequence.
-func trunc(s string, n int) string {
-	s = strings.TrimSpace(strings.Join(strings.Fields(s), " "))
-	if n <= 0 {
-		return ""
-	}
-	runes := []rune(s)
-	if len(runes) <= n {
-		return s
-	}
-	if n == 1 {
-		return "…"
-	}
-	return string(runes[:n-1]) + "…"
+// oneLine collapses internal whitespace (including newlines) into single
+// spaces. Used for fields that render inline in the event header — multi-line
+// content there would break the prefix layout. Does NOT truncate; full
+// content is preserved, just on one line.
+func oneLine(s string) string {
+	return strings.TrimSpace(strings.Join(strings.Fields(s), " "))
 }
 
-// PrettyAutomate writes one human-readable line describing ev to w.
+// style applies ANSI SGR escapes when enabled. Hand-rolled rather than
+// pulling in a color library — we use a tiny set of codes (dim, bold, three
+// foreground colors) and the SGR sequences are stable.
+type style struct{ enabled bool }
+
+func (s style) wrap(code, text string) string {
+	if !s.enabled {
+		return text
+	}
+	return "\x1b[" + code + "m" + text + "\x1b[0m"
+}
+
+func (s style) dim(t string) string       { return s.wrap("2", t) }
+func (s style) bold(t string) string      { return s.wrap("1", t) }
+func (s style) green(t string) string     { return s.wrap("32", t) }
+func (s style) red(t string) string       { return s.wrap("31", t) }
+func (s style) cyan(t string) string      { return s.wrap("36", t) }
+func (s style) underline(t string) string { return s.wrap("4", t) }
+
+// header renders the standard "[Xs] event:name" header chunk with the prefix
+// dimmed and the event name in cyan when color is enabled.
+func (s style) header(prefix, event string) string {
+	return s.dim(prefix) + " " + s.cyan(event)
+}
+
+// PrettyAutomate writes one or more human-readable lines describing ev to w.
 //
-// The renderer recognizes the most informative event variants (browser
-// navigation, agent step/reasoning/action, task lifecycle, complete, error)
-// and renders them with their meaningful payload fields. Other variants fall
-// through to a generic `[12s] event:name` line so nothing is silently
-// dropped.
-func PrettyAutomate(w io.Writer, ev tabstack.AutomateEventUnion, startedAt time.Time) error {
+// Most variants render as a single header line. Variants that carry
+// substantial output — agent:reasoned, complete (final answer), error
+// (message) — print a header line followed by the full content on a
+// continuation line, preserving newlines so paragraph structure survives.
+// Unspecialized variants fall through to a generic `[12s] event:name` line
+// so nothing is silently dropped.
+//
+// When color is true, ANSI SGR escapes highlight the time prefix (dim),
+// event names (cyan), success/failure markers (green/red), and error event
+// names (red). Caller is responsible for deciding whether color is
+// appropriate (TTY check, NO_COLOR env, etc.).
+func PrettyAutomate(w io.Writer, ev tabstack.AutomateEventUnion, startedAt time.Time, color bool) error {
 	prefix := elapsed(startedAt)
+	s := style{enabled: color}
+
 	switch v := ev.AsAny().(type) {
 	case tabstack.AutomateEventCdpEndpointConnected:
-		_, err := fmt.Fprintf(w, "%s cdp:endpoint_connected\n", prefix)
+		_, err := fmt.Fprintf(w, "%s\n", s.header(prefix, "cdp:endpoint_connected"))
 		return err
 	case tabstack.AutomateEventAgentStatus:
-		_, err := fmt.Fprintf(w, "%s agent:status — %s\n", prefix, trunc(v.Data.Message, truncWidth))
+		_, err := fmt.Fprintf(w, "%s — %s\n", s.header(prefix, "agent:status"), oneLine(v.Data.Message))
 		return err
 	case tabstack.AutomateEventAgentStep:
-		_, err := fmt.Fprintf(w, "%s agent:step iteration %d\n", prefix, int(v.Data.CurrentIteration))
+		_, err := fmt.Fprintf(w, "%s iteration %d\n", s.header(prefix, "agent:step"), int(v.Data.CurrentIteration))
 		return err
 	case tabstack.AutomateEventAgentReasoned:
-		_, err := fmt.Fprintf(w, "%s agent:reasoned — %s\n", prefix, trunc(v.Data.Reasoning, truncWidth))
+		_, err := fmt.Fprintf(w, "%s\n%s\n", s.header(prefix, "agent:reasoned"), strings.TrimSpace(v.Data.Reasoning))
 		return err
 	case tabstack.AutomateEventAgentAction:
 		switch {
-		case v.Data.Value != "" && v.Data.Ref != "":
-			_, err := fmt.Fprintf(w, "%s agent:action %s ref=%s value=%q\n", prefix, v.Data.Action, v.Data.Ref, trunc(v.Data.Value, truncWidth))
+		case v.Data.Ref != "":
+			_, err := fmt.Fprintf(w, "%s %s ref=%s value=%q\n",
+				s.header(prefix, "agent:action"), s.bold(v.Data.Action), v.Data.Ref, oneLine(v.Data.Value))
 			return err
 		case v.Data.Value != "":
-			_, err := fmt.Fprintf(w, "%s agent:action %s — %s\n", prefix, v.Data.Action, trunc(v.Data.Value, truncWidth))
+			_, err := fmt.Fprintf(w, "%s %s\n%s\n",
+				s.header(prefix, "agent:action"), s.bold(v.Data.Action), strings.TrimSpace(v.Data.Value))
 			return err
 		default:
-			_, err := fmt.Fprintf(w, "%s agent:action %s\n", prefix, v.Data.Action)
+			_, err := fmt.Fprintf(w, "%s %s\n", s.header(prefix, "agent:action"), s.bold(v.Data.Action))
 			return err
 		}
 	case tabstack.AutomateEventBrowserNavigated:
-		_, err := fmt.Fprintf(w, "%s browser:navigated %s — %q\n", prefix, v.Data.URL, trunc(v.Data.Title, truncWidth))
+		_, err := fmt.Fprintf(w, "%s %s — %q\n",
+			s.header(prefix, "browser:navigated"), s.underline(v.Data.URL), oneLine(v.Data.Title))
 		return err
 	case tabstack.AutomateEventBrowserActionStarted:
-		_, err := fmt.Fprintf(w, "%s browser:action_started\n", prefix)
+		_, err := fmt.Fprintf(w, "%s\n", s.header(prefix, "browser:action_started"))
 		return err
 	case tabstack.AutomateEventBrowserActionCompleted:
-		_, err := fmt.Fprintf(w, "%s browser:action_completed\n", prefix)
+		_, err := fmt.Fprintf(w, "%s\n", s.header(prefix, "browser:action_completed"))
 		return err
 	case tabstack.AutomateEventTaskStarted:
-		_, err := fmt.Fprintf(w, "%s task:started\n", prefix)
+		_, err := fmt.Fprintf(w, "%s\n", s.header(prefix, "task:started"))
 		return err
 	case tabstack.AutomateEventTaskValidated:
-		_, err := fmt.Fprintf(w, "%s task:validated\n", prefix)
+		_, err := fmt.Fprintf(w, "%s\n", s.header(prefix, "task:validated"))
 		return err
 	case tabstack.AutomateEventTaskCompleted:
-		_, err := fmt.Fprintf(w, "%s task:completed\n", prefix)
+		_, err := fmt.Fprintf(w, "%s\n", s.header(prefix, "task:completed"))
 		return err
 	case tabstack.AutomateEventTaskAborted:
-		_, err := fmt.Fprintf(w, "%s task:aborted\n", prefix)
+		_, err := fmt.Fprintf(w, "%s\n", s.header(prefix, "task:aborted"))
 		return err
 	case tabstack.AutomateEventInteractiveFormDataRequest:
-		_, err := fmt.Fprintf(w, "%s interactive:form_data:request — %s (%d field(s))\n",
-			prefix, trunc(v.Data.FormDescription, truncWidth-30), len(v.Data.Fields))
+		_, err := fmt.Fprintf(w, "%s — %s (%d field(s))\n",
+			s.header(prefix, "interactive:form_data:request"), oneLine(v.Data.FormDescription), len(v.Data.Fields))
 		return err
 	case tabstack.AutomateEventComplete:
-		mark := "✓"
-		if !v.Data.Success {
-			mark = "✗"
+		var mark string
+		if v.Data.Success {
+			mark = s.green("✓")
+		} else {
+			mark = s.red("✗")
 		}
-		_, err := fmt.Fprintf(w, "%s complete %s %q\n", prefix, mark, trunc(v.Data.FinalAnswer, truncWidth))
+		if v.Data.FinalAnswer != "" {
+			_, err := fmt.Fprintf(w, "%s %s\n%s\n",
+				s.header(prefix, "complete"), mark, strings.TrimSpace(v.Data.FinalAnswer))
+			return err
+		}
+		_, err := fmt.Fprintf(w, "%s %s\n", s.header(prefix, "complete"), mark)
 		return err
 	case tabstack.AutomateEventError:
-		_, err := fmt.Fprintf(w, "%s error — %s\n", prefix, trunc(v.Data.Error.Message, truncWidth))
+		_, err := fmt.Fprintf(w, "%s %s\n%s\n",
+			s.dim(prefix), s.red("error"), strings.TrimSpace(v.Data.Error.Message))
 		return err
 	default:
 		// Unknown / unspecialized variant. Fall back to event-name only.
-		_, err := fmt.Fprintf(w, "%s %s\n", prefix, ev.Event)
+		_, err := fmt.Fprintf(w, "%s\n", s.header(prefix, ev.Event))
 		return err
 	}
 }
 
-// PrettyResearch writes one human-readable line describing ev to w.
+// PrettyResearch writes one or more human-readable lines describing ev to w.
 //
-// Most research event variants carry a `Message` field with a human-friendly
-// description; for those we render `[12s] event:name — <message>`. A few
-// variants get extra fields (search counts, complexity, etc.).
-func PrettyResearch(w io.Writer, ev tabstack.ResearchEventUnion, startedAt time.Time) error {
+// Same conventions as PrettyAutomate: terminal-result variants (complete,
+// error) print the full payload on a continuation line; progress variants
+// render on a single line. Color usage matches PrettyAutomate.
+func PrettyResearch(w io.Writer, ev tabstack.ResearchEventUnion, startedAt time.Time, color bool) error {
 	prefix := elapsed(startedAt)
+	s := style{enabled: color}
+
 	switch v := ev.AsAny().(type) {
 	case tabstack.ResearchEventPlanningStart:
-		_, err := fmt.Fprintf(w, "%s planning:start — %s\n", prefix, trunc(v.Data.Message, truncWidth))
+		_, err := fmt.Fprintf(w, "%s — %s\n", s.header(prefix, "planning:start"), oneLine(v.Data.Message))
 		return err
 	case tabstack.ResearchEventPlanningEnd:
-		_, err := fmt.Fprintf(w, "%s planning:end — %s (complexity: %s, %d queries)\n",
-			prefix, trunc(v.Data.Message, 60), v.Data.Complexity, len(v.Data.Queries))
+		_, err := fmt.Fprintf(w, "%s — %s (complexity: %s, %d queries)\n",
+			s.header(prefix, "planning:end"), oneLine(v.Data.Message), v.Data.Complexity, len(v.Data.Queries))
 		return err
 	case tabstack.ResearchEventIterationStart:
-		_, err := fmt.Fprintf(w, "%s iteration:start [%d/%d] — %s\n",
-			prefix, int(v.Data.Iteration), int(v.Data.MaxIterations), trunc(v.Data.Message, 80))
+		_, err := fmt.Fprintf(w, "%s [%d/%d] — %s\n",
+			s.header(prefix, "iteration:start"), int(v.Data.Iteration), int(v.Data.MaxIterations), oneLine(v.Data.Message))
 		return err
 	case tabstack.ResearchEventIterationEnd:
 		stop := v.Data.StopReason
 		if stop == "" {
 			stop = "—"
 		}
-		_, err := fmt.Fprintf(w, "%s iteration:end [%d] (stop: %s)\n", prefix, int(v.Data.Iteration), stop)
+		_, err := fmt.Fprintf(w, "%s [%d] (stop: %s)\n",
+			s.header(prefix, "iteration:end"), int(v.Data.Iteration), stop)
 		return err
 	case tabstack.ResearchEventSearchingStart:
-		_, err := fmt.Fprintf(w, "%s searching:start — %d quer%s\n",
-			prefix, len(v.Data.Queries), pluralY(len(v.Data.Queries)))
+		_, err := fmt.Fprintf(w, "%s — %d quer%s\n",
+			s.header(prefix, "searching:start"), len(v.Data.Queries), pluralY(len(v.Data.Queries)))
 		return err
 	case tabstack.ResearchEventSearchingEnd:
-		_, err := fmt.Fprintf(w, "%s searching:end — found %d URL(s), %d new\n",
-			prefix, int(v.Data.URLsFound), int(v.Data.URLsNew))
+		_, err := fmt.Fprintf(w, "%s — found %d URL(s), %d new\n",
+			s.header(prefix, "searching:end"), int(v.Data.URLsFound), int(v.Data.URLsNew))
 		return err
 	case tabstack.ResearchEventWritingStart:
-		_, err := fmt.Fprintf(w, "%s writing:start — attempt %d/%d\n",
-			prefix, int(v.Data.Attempt), int(v.Data.MaxAttempts))
+		_, err := fmt.Fprintf(w, "%s — attempt %d/%d\n",
+			s.header(prefix, "writing:start"), int(v.Data.Attempt), int(v.Data.MaxAttempts))
 		return err
 	case tabstack.ResearchEventWritingEnd:
-		_, err := fmt.Fprintf(w, "%s writing:end — attempt %d\n", prefix, int(v.Data.Attempt))
+		_, err := fmt.Fprintf(w, "%s — attempt %d\n", s.header(prefix, "writing:end"), int(v.Data.Attempt))
 		return err
 	case tabstack.ResearchEventComplete:
-		_, err := fmt.Fprintf(w, "%s complete — %s\n", prefix, trunc(v.Data.Report, truncWidth))
+		_, err := fmt.Fprintf(w, "%s\n%s\n", s.header(prefix, "complete"), strings.TrimSpace(v.Data.Report))
 		return err
 	case tabstack.ResearchEventError:
-		_, err := fmt.Fprintf(w, "%s error — %s\n", prefix, trunc(v.Data.Error.Message, truncWidth))
+		_, err := fmt.Fprintf(w, "%s %s\n%s\n",
+			s.dim(prefix), s.red("error"), strings.TrimSpace(v.Data.Error.Message))
 		return err
 	default:
 		// Unknown / unspecialized variant. Fall back to event-name only.
-		_, err := fmt.Fprintf(w, "%s %s\n", prefix, ev.Event)
+		_, err := fmt.Fprintf(w, "%s\n", s.header(prefix, ev.Event))
 		return err
 	}
 }

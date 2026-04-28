@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"strings"
 )
 
@@ -14,7 +15,25 @@ var (
 	validEfforts       = []string{"min", "standard", "max"}
 	validResearchModes = []string{"fast", "balanced"}
 	validStreamOutputs = []string{"json", "pretty"}
+	validColorModes    = []string{"auto", "always", "never"}
 )
+
+// resolveStreamColor maps the --color flag's "auto|always|never" choice into
+// the bool the pretty renderer takes. "auto" enables color when stdout is a
+// TTY AND NO_COLOR is unset (the de-facto opt-out — see https://no-color.org).
+func resolveStreamColor(mode string) bool {
+	switch mode {
+	case "always":
+		return true
+	case "never":
+		return false
+	default: // "auto" or empty
+		if os.Getenv("NO_COLOR") != "" {
+			return false
+		}
+		return isTerminal(os.Stdout)
+	}
+}
 
 // validateEnum returns an error when value is non-empty and not in valid.
 // An empty value is permitted — the API uses its own default.

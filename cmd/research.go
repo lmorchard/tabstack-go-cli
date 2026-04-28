@@ -18,6 +18,7 @@ var (
 	researchNocache      bool
 	researchFetchTimeout int64
 	researchOutput       string
+	researchColor        string
 )
 
 var researchCmd = &cobra.Command{
@@ -32,6 +33,9 @@ func runResearch(_ *cobra.Command, args []string) error {
 		return err
 	}
 	if err := validateEnum("output", researchOutput, validStreamOutputs); err != nil {
+		return err
+	}
+	if err := validateEnum("color", researchColor, validColorModes); err != nil {
 		return err
 	}
 	c, err := client.New(GetConfig())
@@ -56,8 +60,9 @@ func runResearch(_ *cobra.Command, args []string) error {
 	if researchOutput == "pretty" {
 		defer func() { _ = stream.Close() }()
 		started := time.Now()
+		color := resolveStreamColor(researchColor)
 		for stream.Next() {
-			if err := sse.PrettyResearch(os.Stdout, stream.Current(), started); err != nil {
+			if err := sse.PrettyResearch(os.Stdout, stream.Current(), started, color); err != nil {
 				return fmt.Errorf("render event: %w", err)
 			}
 		}
@@ -77,6 +82,7 @@ func init() {
 	researchCmd.Flags().BoolVar(&researchNocache, "nocache", false, "bypass cache")
 	researchCmd.Flags().Int64Var(&researchFetchTimeout, "fetch-timeout", 0, "per-fetch timeout in seconds (0 = SDK default)")
 	researchCmd.Flags().StringVar(&researchOutput, "output", "json", "stream output format: json (one event per line) or pretty (human-readable)")
+	researchCmd.Flags().StringVar(&researchColor, "color", "auto", "color in pretty output: auto (TTY only, respects NO_COLOR), always, or never")
 
 	rootCmd.AddCommand(researchCmd)
 }
