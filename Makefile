@@ -73,12 +73,16 @@ vendor:
 	@git restore --source HEAD -- $(SDK_PATCHES)
 	@echo "✅ vendor/ refreshed (with local patches restored)"
 
-# Verify vendor/ is in sync with go.mod (for CI)
+# Verify vendor/ is in sync with go.mod and the local SDK patches.
+# Runs the same vendor + patch-restore flow as `make vendor`, then diffs;
+# any leftover diff means a contributor changed go.mod or a patch without
+# committing the corresponding vendor/ refresh.
 vendor-check:
-	@echo "Checking vendor/ is in sync with go.mod..."
+	@echo "Checking vendor/ is in sync with go.mod (with patches restored)..."
 	@go mod vendor
+	@git restore --source HEAD -- $(SDK_PATCHES)
 	@git diff --quiet vendor/ go.mod go.sum || { \
-		echo "❌ vendor/ is out of sync with go.mod. Run 'make vendor' and commit the result."; \
+		echo "❌ vendor/ is out of sync. Run 'make vendor' and commit the result."; \
 		git diff --stat vendor/ go.mod go.sum; \
 		echo "--- diff ---"; \
 		git diff vendor/ go.mod go.sum | head -60; \
