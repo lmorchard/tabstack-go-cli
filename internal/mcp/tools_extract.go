@@ -44,3 +44,39 @@ func registerExtractMarkdown(s *sdk.Server, c *tabstack.Client) {
 		return jsonResult(resp), nil, nil
 	})
 }
+
+// ExtractJsonInput is the input for tabstack_extract_json.
+type ExtractJsonInput struct {
+	URL        string         `json:"url" jsonschema:"URL to fetch and extract structured data from"`
+	JsonSchema map[string]any `json:"json_schema" jsonschema:"JSON Schema describing the structure of data to extract"`
+	Nocache    bool           `json:"nocache,omitempty" jsonschema:"bypass server-side cache"`
+	Effort     string         `json:"effort,omitempty" jsonschema:"speed/capability tradeoff: min, standard, or max"`
+	Geo        string         `json:"geo,omitempty" jsonschema:"ISO 3166-1 alpha-2 country code"`
+}
+
+func registerExtractJson(s *sdk.Server, c *tabstack.Client) {
+	sdk.AddTool(s, &sdk.Tool{
+		Name: "tabstack_extract_json",
+		Description: "Fetch a URL and extract structured data conforming to a JSON Schema you provide. " +
+			"Use when you need specific fields out of a page (e.g. title, price, author).",
+	}, func(ctx context.Context, _ *sdk.CallToolRequest, in *ExtractJsonInput) (*sdk.CallToolResult, any, error) {
+		body := tabstack.ExtractJsonParams{
+			URL:        in.URL,
+			JsonSchema: in.JsonSchema,
+		}
+		if in.Nocache {
+			body.Nocache = param.NewOpt(true)
+		}
+		if in.Effort != "" {
+			body.Effort = tabstack.ExtractJsonParamsEffort(in.Effort)
+		}
+		if in.Geo != "" {
+			body.GeoTarget = tabstack.ExtractJsonParamsGeoTarget{Country: param.NewOpt(in.Geo)}
+		}
+		resp, err := c.Extract.Json(ctx, body)
+		if err != nil {
+			return toolError(fmt.Errorf("extract json: %w", err)), nil, nil
+		}
+		return jsonResult(resp), nil, nil
+	})
+}
